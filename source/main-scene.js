@@ -1,6 +1,5 @@
-import {defs, tiny} from './examples/common.js';
+import {defs, tiny} from '../include/common.js';
 
-import {Transforms_Sandbox} from "./examples/transforms-sandbox.js"
 import {Assignment2} from "./assignment2.js"
 // Pull these names into this module's scope for convenience:
 const {
@@ -18,14 +17,12 @@ const {
 
 const Minimal_Webgl_Demo = defs.Minimal_Webgl_Demo;
 
-Object.assign(defs,
-            {Transforms_Sandbox}, {Assignment2});
+Object.assign(defs, {Assignment2});
 
 // ******************** End extra step
 
 // (Can define Main_Scene's class here)
 
-//const Main_Scene = Transforms_Sandbox;
 const Main_Scene = Assignment2;
 const Additional_Scenes = [];
 
