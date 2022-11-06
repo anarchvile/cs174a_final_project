@@ -48,7 +48,6 @@ class Cube_Single_Strip extends Shape {
     }
 }
 
-
 class Base_Scene extends Scene {
     /**
      *  **Base_scene** is a Scene that can be added to any display canvas.
@@ -169,6 +168,7 @@ export class Assignment2 extends Base_Scene {
 
     display(context, program_state) {
         super.display(context, program_state);
+
         let model_transform = Mat4.identity();
 
         let y_scale = 1.5;
