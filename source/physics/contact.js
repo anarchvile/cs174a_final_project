@@ -25,5 +25,8 @@ export class Contact
         this.normalImpulseSum = 0;
         this.tangentImpulseSum1 = 0;
         this.tangentImpulseSum2 = 0;
+
+        this.closingVelocityI = vec4(0, 0, 0, 0);
+        this.closingVelocityJ = vec4(0, 0, 0, 0);
     }
 };
