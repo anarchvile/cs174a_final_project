@@ -1,6 +1,5 @@
 import {defs, tiny} from "../../include/common.js";
 import {PhysicsSim} from "../physics/physics_simulation.js"
-import {Cube} from "../geometry/geometry.js"
 import {RigidBody} from "../physics/rigidbody.js";
 import {Force} from "../physics/force.js"
 
@@ -12,7 +11,11 @@ export class Test_Scene extends PhysicsSim
     constructor() 
     {
         super();
-        this.shapes = { 'cube': new Cube() };
+        this.shapes = 
+        {
+            cube: new defs.Cube(),
+            sphere: new defs.Subdivision_Sphere(4),
+        };
         this.materials = {
             plastic: new Material(new defs.Phong_Shader(),
                 {ambient: .4, diffusivity: .6, color: color(1,0,0,1)}),
@@ -21,14 +24,11 @@ export class Test_Scene extends PhysicsSim
 
     initialize(context, program_state)
     {
-        this.rigidbodies.set("Cube1", new RigidBody(this.shapes.cube, this.materials.plastic, "Cube1", Mat4.identity(), vec4(0, 0, 0, 0), 1));
-        
-        let body_names = [];
-        for (let b of this.rigidbodies.values())
-        {
-            body_names.push(b.name);
-        }
+        this.rigidbodies.set("Sphere1", new RigidBody(this.shapes.sphere, this.materials.plastic, "Sphere1", vec4(-20, 1, 0, 1), vec4(0, 0, 0, 0), 1, 2, "sphere"));
+        this.rigidbodies.set("Sphere2", new RigidBody(this.shapes.sphere, this.materials.plastic.override({ color: color(0,1,0,1) }), "Sphere2", vec4(0, 0, 0, 1), vec4(0, 0, 0, 0), 1, 2, "sphere", false));
+        //this.rigidbodies.set("Ground", new RigidBody(this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), "Ground", vec4(0, 0, 0, 1), vec4(0, 0, 0, 0), 1, 10, "cube", true));
 
-        this.forces.push(new Force(body_names, vec4(0, -0.1, 0, 0), true, -1));
+        this.forces.push(new Force(["Sphere1"], vec4(0.2, 0, 0, 0), true));
+        this.forces.push(new Force(["Sphere2"], vec4(-0.2, 0, 0, 0), true));
     }
 }

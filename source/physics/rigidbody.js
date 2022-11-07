@@ -5,13 +5,16 @@ const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture
 
 export class RigidBody 
 {
-    constructor(shape, material, name, position, velocity, mass)
+    constructor(shape, material, name, position, velocity, mass, size, type, is_kinematic)
     {
         Object.assign(this, {shape, material});
         this.name = name;
         this.position = position;
         this.velocity = velocity;
         this.mass = mass;
+        this.size = size;
+        this.type = type;
+        this.is_kinematic = is_kinematic;
     }
 
     // (within some margin of distance).

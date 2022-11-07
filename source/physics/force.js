@@ -5,7 +5,7 @@ const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture
 
 export class Force
 {
-    constructor(affected_bodies, force_vector, indefinite, duration)
+    constructor(affected_bodies, force_vector, indefinite, duration = 0)
     {
         this.affected_bodies = affected_bodies;
         this.force_vector = force_vector;
