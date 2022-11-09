@@ -19,13 +19,13 @@ export class PhysicsSim extends Scene
         this.contact_constraints = new Map();
         this.end = false;
     }
-    // TODO: Initialize(context, program_state). Add all objects to scene.
+
     initialize(context, program_state) 
     {
         throw "IMPLEMENT!";
     }
 
-    fixed_update(frame_time) 
+    fixed_update(frame_time)
     {
         if (this.end)
         {
@@ -37,15 +37,17 @@ export class PhysicsSim extends Scene
         // Limit the amount of time we will spend computing during this timestep if display lags:
         this.time_accumulator += Math.min(frame_time, 0.1);
         // Repeatedly step the simulation until we're caught up with this frame:
-        while (Math.abs(this.time_accumulator) >= this.dt) 
+        while (Math.abs(this.time_accumulator) >= this.dt)
         {
+            // Step 1: Integrate applied accelerations to get nominal
+            // object velocities.
             // Single step of the simulation for all forces in the scene.
             for (var i = 0; i < this.forces.length; ++i)
             {
                 // Remove forces whose duration has expired.
                 if (!this.forces[i].indefinite && this.forces[i].duration <= 0)
                 {
-                    this.forces.splice(--i, 1);
+                    this.forces.splice(i--, 1);
                     continue;
                 }
                 // Each force keeps track of the rigid bodies it acts on.
@@ -62,7 +64,6 @@ export class PhysicsSim extends Scene
                     }
                     var acceleration = this.forces[i].force_vector.times(1 / rb.mass);
                     rb.velocity = rb.velocity.plus(acceleration.times(this.dt));
-                    //rb.position = rb.position.plus(rb.velocity.times(this.dt));
                 }
 
                 if (this.forces[i].duration > 0)
@@ -70,7 +71,8 @@ export class PhysicsSim extends Scene
                     this.forces[i].duration -= this.dt;
                 }
             }
-            // Collision detection - for now we just use spheres and boxes as the only
+
+            // Step 2: Collision detection - for now we just use spheres and boxes as the only
             // primitive and naively check for overlapping regions via an
             // O(n^2) algorithm. If we detect any overlap, create a contact constraint
             // object for those two objects. TODO: later split this into broad-phase and
@@ -87,7 +89,7 @@ export class PhysicsSim extends Scene
                     {
                         var deltaPos = rbj.position.minus(rbi.position);
                         var centerDistanceSq = deltaPos.dot(deltaPos);
-                        var combinedRadiiSq = (rbi.size + rbj.size)**2;
+                        var combinedRadiiSq = (rbi.size[0] + rbj.size[0])**2;
                         // Skip if the two objects don't intersect/collide.
                         if (centerDistanceSq > combinedRadiiSq)
                         {
@@ -102,12 +104,12 @@ export class PhysicsSim extends Scene
                         contact.normal = deltaPos.times(1 / Math.sqrt(centerDistanceSq));
                         // Get the global positions of the deepest penetration points on each
                         // object.
-                        contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size));
-                        contact.globalPositionJ = rbj.position.plus(contact.normal.times(-rbj.size));
+                        contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size[0]));
+                        contact.globalPositionJ = rbj.position.plus(contact.normal.times(-rbj.size[0]));
                         // Get the vectors pointing from the object center of mass to the point
                         // of deepest penetration in the object's local reference frame.
-                        contact.localPositionI = contact.normal.times(rbi.size);
-                        contact.localPositionJ = contact.normal.times(-rbj.size);
+                        contact.localPositionI = contact.normal.times(rbi.size[0]);
+                        contact.localPositionJ = contact.normal.times(-rbj.size[0]);
                         // Get the object velocities at collision.
                         contact.closingVelocityI = rbi.velocity;
                         contact.closingVelocityJ = rbj.velocity;
@@ -119,13 +121,13 @@ export class PhysicsSim extends Scene
                     {
                         // Get box closest point to sphere center by clamping.
                         var clstBoxPnt = vec4(0, 0, 0, 1);
-                        clstBoxPnt[0] = Math.max(rbj.position[0] - rbj.size, Math.min(rbi.position[0], rbj.position[0] + rbj.size));
-                        clstBoxPnt[1] = Math.max(rbj.position[1] - rbj.size, Math.min(rbi.position[1], rbj.position[1] + rbj.size));
-                        clstBoxPnt[2] = Math.max(rbj.position[2] - rbj.size, Math.min(rbi.position[2], rbj.position[2] + rbj.size));
+                        clstBoxPnt[0] = Math.max(rbj.position[0] - rbj.size[0], Math.min(rbi.position[0], rbj.position[0] + rbj.size[0]));
+                        clstBoxPnt[1] = Math.max(rbj.position[1] - rbj.size[1], Math.min(rbi.position[1], rbj.position[1] + rbj.size[1]));
+                        clstBoxPnt[2] = Math.max(rbj.position[2] - rbj.size[2], Math.min(rbi.position[2], rbj.position[2] + rbj.size[2]));
                         // Check if the closest point we determined above is inside
                         // the sphere.
                         const distance = Math.sqrt((clstBoxPnt[0] - rbi.position[0])**2 + (clstBoxPnt[1] - rbi.position[1])**2 + (clstBoxPnt[2] - rbi.position[2])**2);
-                        if (distance > rbi.size)
+                        if (distance > rbi.size[0])
                         {
                             continue;
                         }
@@ -138,11 +140,11 @@ export class PhysicsSim extends Scene
                         contact.normal = clstBoxPnt.minus(rbi.position).times(1 / distance);
                         // Get the global positions of the deepest penetration points on each
                         // object.
-                        contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size));
+                        contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size[0]));
                         contact.globalPositionJ = clstBoxPnt;
                         // Get the vectors pointing from the object center of mass to the point
                         // of deepest penetration in the object's local reference frame.
-                        contact.localPositionI = contact.normal.times(rbi.size);
+                        contact.localPositionI = contact.normal.times(rbi.size[0]);
                         contact.localPositionJ = clstBoxPnt.minus(rbj.position);
                         // Get the object velocities at collision.
                         contact.closingVelocityI = rbi.velocity;
@@ -155,18 +157,18 @@ export class PhysicsSim extends Scene
                     {
                         // Get box closest point to sphere center by clamping.
                         var clstBoxPnt = vec4(0, 0, 0, 1);
-                        clstBoxPnt[0] = Math.max(rbi.position[0] - rbi.size, Math.min(rbj.position[0], rbi.position[0] + rbi.size));
-                        clstBoxPnt[1] = Math.max(rbi.position[1] - rbi.size, Math.min(rbj.position[1], rbi.position[1] + rbi.size));
-                        clstBoxPnt[2] = Math.max(rbi.position[2] - rbi.size, Math.min(rbj.position[2], rbi.position[2] + rbi.size));
+                        clstBoxPnt[0] = Math.max(rbi.position[0] - rbi.size[0], Math.min(rbj.position[0], rbi.position[0] + rbi.size[0]));
+                        clstBoxPnt[1] = Math.max(rbi.position[1] - rbi.size[1], Math.min(rbj.position[1], rbi.position[1] + rbi.size[1]));
+                        clstBoxPnt[2] = Math.max(rbi.position[2] - rbi.size[2], Math.min(rbj.position[2], rbi.position[2] + rbi.size[2]));
 
                         // Check if the closest point we determined above is inside
                         // the sphere.
                         const distance = Math.sqrt((clstBoxPnt[0] - rbj.position[0])**2 + (clstBoxPnt[1] - rbj.position[1])**2 + (clstBoxPnt[2] - rbj.position[2])**2);
-                        //if (distance > rbj.size + rbi.size / 2)
-                        if (distance > rbj.size)
+                        if (distance > rbj.size[0])
                         {
                             continue;
                         }
+
                         // If the closest point on the box is inside the sphere, create a new
                         // Contact constraint object.
                         var contact = new Contact();
@@ -177,11 +179,11 @@ export class PhysicsSim extends Scene
                         // Get the global positions of the deepest penetration points on each
                         // object.
                         contact.globalPositionI = clstBoxPnt;
-                        contact.globalPositionJ = rbj.position.plus(contact.normal.times(rbj.size));
+                        contact.globalPositionJ = rbj.position.plus(contact.normal.times(rbj.size[0]));
                         // Get the vectors pointing from the object center of mass to the point
                         // of deepest penetration in the object's local reference frame.
                         contact.localPositionI = clstBoxPnt.minus(rbi.position);
-                        contact.localPositionJ = contact.normal.times(rbj.size);
+                        contact.localPositionJ = contact.normal.times(rbj.size[0]);
                         // Get the object velocities at collision.
                         contact.closingVelocityI = rbi.velocity;
                         contact.closingVelocityJ = rbj.velocity;
@@ -189,28 +191,132 @@ export class PhysicsSim extends Scene
                         const key_array = [rbi.name, rbj.name];
                         this.contact_constraints.set(key_array, contact);
                     }
-                    else if (rbi.type == "cube" && rbj.type == "cube")
+                    //else if (rbi.type == "cube" && rbj.type == "cube")
                     {
 
                     }
                 }
             }
 
+            // Step 3: Warm start for velocity constraint.
+            
+
+            // Step 4: Solve velocity constraint.
+            for (var i = 0; i < 15; ++i)
+            {
+                for (const [key, contact] of this.contact_constraints)
+                {
+                    var rbi = this.rigidbodies.get(key[0]);
+                    var rbj = this.rigidbodies.get(key[1]);
+
+                    // Need to recalculate relative velocity because the previous step could have changed
+                    // the object velocity.
+                    //const relativeVelocity = point.getRelativeVelocity();
+                    const relativeVelocity = rbj.velocity.minus(rbi.velocity);
+
+                    //const effectiveMass = bodyA.inverseMass + bodyB.inverseMass + 
+                    //                        bodyA.inverseInertia * aToContactNormal * aToContactNormal +
+                    //                        bodyB.inverseInertia * bToContactNormal * bToContactNormal;
+                    const effectiveMass = 1 / rbi.mass + 1 / rbj.mass;
+
+                    //const restitution = bodyA.restitution * bodyB.restitution;
+                    // restitution = 1 -> completely inelastic. restitution = 3 -> fully elastic.
+                    const restitution = 2.99;
+                    
+                    // Compute impulse in normal direction
+                    const normalVelocityMagnitude = relativeVelocity.dot(contact.normal);
+                    let impulseMagnitude = (-(1 + restitution) * normalVelocityMagnitude) / effectiveMass;
+                    
+                    // Clamping based in Erin Catto's GDC 2014 talk
+                    // Accumulated impulse stored in the contact is always positive (dV > 0)
+                    // But deltas can be negative
+                    const newImpulse = Math.max(contact.normalImpulseSum + impulseMagnitude, 0);
+                    impulseMagnitude = newImpulse - contact.normalImpulseSum;
+                    contact.normalImpulseSum = newImpulse;
+                    const impulseVector = contact.normal.times(impulseMagnitude);
+                    // By convention the normal points away from A, so negate
+                    //contact.bodyA.applyImpulse(point.point, impulseVector.negate());
+                    //contact.bodyB.applyImpulse(point.point, impulse);
+                    //console.log(rbi.velocity, rbj.velocity, impulseVector);
+
+                    if (!rbi.is_kinematic)
+                    {
+                        rbi.velocity = rbi.velocity.minus(impulseVector.times(1 / rbi.mass));
+                    }
+                    if (!rbj.is_kinematic)
+                    {
+                        rbj.velocity = rbj.velocity.plus(impulseVector.times(1 / rbj.mass));
+                    }
+                }
+            }
+
+            // Step 5: Integrate velocities to obtain new object positions.
+            for (const key of this.rigidbodies.keys())
+            {
+                if (!this.rigidbodies.get(key).is_kinematic)
+                {
+                    this.rigidbodies.get(key).position = this.rigidbodies.get(key).position.plus(this.rigidbodies.get(key).velocity.times(this.dt));
+                }
+            }
+
+            // Step 6: Apply position constraint to ensure that there is no object overlap.
+            for (var i = 0; i < 3; ++i)
+            {
+                for (const [key, contact] of this.contact_constraints)
+                {
+                    var rbi = this.rigidbodies.get(key[0]);
+                    var rbj = this.rigidbodies.get(key[1]);
+
+                    const separation = -Math.abs(contact.globalPositionJ.minus(contact.globalPositionI).dot(contact.normal.times(-1)));
+
+                    // Magic number by 0.2 seems to be a good amount
+                    const steeringConstant = 0.2
+                    // Limit the amount of correction at once for stability
+                    const maxCorrection = -5;
+                    // Be tolerant of 1 pixel of overlap
+                    const slop = 2;
+                
+                    // Clamp to avoid over-correction
+                    // Remember that we are shooting for 0 overlap in the end
+                    //const steeringForce = Math.clamp(steeringConstant * (separation + slop), maxCorrection, 0);
+                    const steeringForce = Math.max(maxCorrection, Math.min(steeringConstant * (separation + slop), 0));
+                    var impulse = contact.normal.times(-steeringForce / (1 / rbi.mass + 1 / rbj.mass));
+                    // NOTE! Update positions of bodyA & bodyB directly by "pseudo-impulse", we still use the same impulse formula from above
+                    if (!rbi.is_kinematic) 
+                    {
+                        rbi.position = rbi.position.plus(impulse.times(-1).times(1 / rbi.mass));
+                        //bodyA.xf.rotation -= point.aToContact.cross(impulse) * bodyA.inverseInertia;
+                    }
+                
+                    if (!rbj.is_kinematic) 
+                    {
+                        rbj.position = rbj.position.plus(impulse.times(1 / rbj.mass));
+                        //bodyB.xf.rotation += point.bToContact.cross(impulse) * bodyB.inverseInertia;
+                    }
+                }
+            }
+
+            // TODO: Find a way to both decrease slop and reduce resulting jittering behavior,
+            // add rotational dynamics, cache previous contact contraints to use for "warm
+            // starts," add cube-cube collision detection/logic, see if we can make the
+            // restitution parameter less sensitive overall, add friction.
+
+            /*
             // Constraint resolution - using the Sequential Impulse method, iterate through
             // all contact constraints and resolve them (i.e. apply appropriate velocities
             // to objects so that they push away from one another AND offset their positions
             // to resolve any penetrations).
             var idx = 0;
-            while (idx < 55)
+            while (idx < 1)
             {
                 for (const [key, value] of this.contact_constraints)
                 {
                     var rbi = this.rigidbodies.get(key[0]);
                     var rbj = this.rigidbodies.get(key[1]);
 
-                    var beta = 0; // Extra energy term.
-                    var Cr = 1; // Restitution.
-                    var d = Math.abs(value.globalPositionJ.minus(value.globalPositionI).dot(value.normal.times(-1))); // Penetration depth.
+                    var beta = 0.1; // Extra energy term.
+                    var Cr = 0; // Restitution.
+                    var d = value.depth; // Penetration depth.
                     // b = Total bias term = (Baumgarte Stabilization) + (Restitution).
                     var b = (-(beta / this.dt) * d) + (Cr * (value.closingVelocityI.times(-1).plus(value.closingVelocityJ).dot(value.normal)));
 
@@ -255,7 +361,6 @@ export class PhysicsSim extends Scene
                         value.normalImpulseSum = 0;
                     }
                     var lambda = value.normalImpulseSum - lambda_old;
-                    console.log(lambda_corrective, lambda_old, value.normalImpulseSum, lambda);
 
                     var deltaV = M_inv.times(J_T).times(lambda);
                     V = V.plus(deltaV);
@@ -271,20 +376,10 @@ export class PhysicsSim extends Scene
                 }
 
                 idx += 1;
-            }
-            // Update all rigidbody positions after the constraints have been solved for.
-            for (const [key, value] of this.rigidbodies)
-            {
-                if (this.rigidbodies.get(key).is_kinematic)
-                {
-                    continue;
-                }
-                this.rigidbodies.get(key).position = this.rigidbodies.get(key).position.plus(this.rigidbodies.get(key).velocity.times(this.dt));
-            }
-
+            }*/
+            
             // Clear all constraints since they've been solved-for.
             this.contact_constraints.clear();
-
             // TODO: Maybe expose another method for applying forces here
             // that gets implemented in the derived scenes (maybe for handling
             // user input that affects objects, adding timed events that apply
@@ -330,7 +425,7 @@ export class PhysicsSim extends Scene
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
             program_state.set_camera(Mat4.translation(-2, -7, -65));
         }
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 1, 100);
+        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 1, 200);
         program_state.lights = [new Light(vec4(0, 5, 5, 1), color(1, 1, 1, 1), 1000)];
 
         if (program_state.animation_delta_time == 0)
@@ -347,9 +442,12 @@ export class PhysicsSim extends Scene
         {
             let model_transform = Mat4.identity();
             model_transform = model_transform.times(Mat4.translation(b.position[0], b.position[1], b.position[2], b.position[3]));
-            model_transform = model_transform.times(Mat4.scale(b.size, b.size, b.size));
+            model_transform = model_transform.times(Mat4.scale(b.size[0], b.size[1], b.size[2]));
 
-            b.shape.draw(context, program_state, model_transform, b.material);
+            if (b.shape != null)
+            {
+                b.shape.draw(context, program_state, model_transform, b.material);
+            }
         }
     }
 }
