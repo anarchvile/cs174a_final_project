@@ -6,7 +6,7 @@ import {Force} from "../physics/force.js"
 // Pull these names into this module's scope for convenience:
 const {vec3, unsafe3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 
-export class Test_Scene extends PhysicsSim
+export class TestScene extends PhysicsSim
 {
     constructor() 
     {
@@ -53,6 +53,18 @@ export class Test_Scene extends PhysicsSim
         this.forces.push(new Force(["Sphere4"], vec4(0.8, 0, -0.5, 0), false, 6));
 
         //this.forces.push(new Force(["Ground"], vec4(0, 0.2, 0, 0), true));
-        
+    }
+
+    display(context, program_state)
+    {
+        if (!context.scratchpad.controls) 
+        {
+            this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
+            program_state.set_camera(Mat4.translation(-2, -7, -65));
+        }
+        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 1, 200);
+        program_state.lights = [new Light(vec4(0, 5, 5, 1), color(1, 1, 1, 1), 1000)];
+
+        super.display(context, program_state);
     }
 }

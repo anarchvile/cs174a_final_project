@@ -421,13 +421,6 @@ export class PhysicsSim extends Scene
 
     display(context, program_state) 
     {
-        if (!context.scratchpad.controls) {
-            this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
-            program_state.set_camera(Mat4.translation(-2, -7, -65));
-        }
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 1, 200);
-        program_state.lights = [new Light(vec4(0, 5, 5, 1), color(1, 1, 1, 1), 1000)];
-
         if (program_state.animation_delta_time == 0)
         {
             this.initialize(context, program_state);

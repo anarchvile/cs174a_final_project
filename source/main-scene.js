@@ -1,6 +1,6 @@
 import {defs, tiny} from '../include/common.js';
-import {Test_Scene} from "./scenes/test_scene.js"
-import {Assignment2} from "./assignment2.js";
+import {TestScene} from "./scenes/test_scene.js"
+import {DemoScene} from "./scenes/demo_scene.js"
 
 // Pull these names into this module's scope for convenience:
 const {
@@ -18,13 +18,15 @@ const {
 
 const Minimal_Webgl_Demo = defs.Minimal_Webgl_Demo;
 
-Object.assign(defs, {Test_Scene});
+//Object.assign(defs, {TestScene});
+Object.assign(defs, {DemoScene});
 
 // ******************** End extra step
 
 // (Can define Main_Scene's class here)
 
-const Main_Scene = Test_Scene;
+//const Main_Scene = TestScene;
+const Main_Scene = DemoScene;
 const Additional_Scenes = [];
 
 export {Main_Scene, Additional_Scenes, Canvas_Widget, Code_Widget, Text_Widget, defs}
