@@ -24,10 +24,10 @@ export class TestScene extends PhysicsSim
 
     initialize(context, program_state)
     {
-        //this.rigidbodies.set("Sphere1", new RigidBody(this.shapes.sphere, this.materials.plastic, "Sphere1", vec4(-20, 1, 0, 1), vec4(0, 0, 0, 0), 1, vec3(2, 2, 2), "sphere"));
-        //this.rigidbodies.set("Sphere2", new RigidBody(this.shapes.sphere, this.materials.plastic.override({ color: color(0,1,0,1) }), "Sphere2", vec4(0, 0, 0, 1), vec4(0, 0, 0, 0), 1, vec3(2, 2, 2), "sphere", false));
-        //this.forces.push(new Force(["Sphere1"], vec4(0.2, 0, 0, 0), true));
-        //this.forces.push(new Force(["Sphere2"], vec4(-0.2, 0, 0, 0), true));
+        /*this.rigidbodies.set("Sphere1", new RigidBody(this.shapes.sphere, this.materials.plastic, "Sphere1", vec4(-20, 1, 0, 1), vec4(0, 0, 0, 0), 1, vec3(2, 2, 2), "sphere"));
+        this.rigidbodies.set("Sphere2", new RigidBody(this.shapes.sphere, this.materials.plastic.override({ color: color(0,1,0,1) }), "Sphere2", vec4(0, 0, 0, 1), vec4(0, 0, 0, 0), 1, vec3(2, 2, 2), "sphere", false));
+        this.forces.push(new Force(["Sphere1"], vec4(0.2, 0, 0, 0), true));
+        this.forces.push(new Force(["Sphere2"], vec4(-0.2, 0, 0, 0), true));*/
 
         this.rigidbodies.set("Ground", new RigidBody(this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), "Ground", vec4(0, -21, 0, 1), vec4(0, 0, 0, 0), 1, vec3(20, 1, 20), "cube", true));
         this.rigidbodies.set("Wall1", new RigidBody(this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), "Wall1", vec4(-21, 0, 0, 1), vec4(0, 0, 0, 0), 1, vec3(1, 20, 20), "cube", true));

@@ -25,8 +25,8 @@ Object.assign(defs, {DemoScene});
 
 // (Can define Main_Scene's class here)
 
-//const Main_Scene = TestScene;
-const Main_Scene = DemoScene;
+const Main_Scene = TestScene;
+//const Main_Scene = DemoScene;
 const Additional_Scenes = [];
 
 export {Main_Scene, Additional_Scenes, Canvas_Widget, Code_Widget, Text_Widget, defs}
