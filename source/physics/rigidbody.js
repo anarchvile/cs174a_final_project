@@ -5,7 +5,7 @@ const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture
 
 export class RigidBody 
 {
-    constructor(shape, material, name, position, velocity, mass, size, type, is_kinematic)
+    constructor(shape, material, name, position, velocity, mass, size, type, is_kinematic, vertices=null)
     {
         Object.assign(this, {shape, material});
         this.name = name;
@@ -15,6 +15,34 @@ export class RigidBody
         this.size = size;
         this.type = type;
         this.is_kinematic = is_kinematic;
+        this.vertices = [];
+        if (shape != null)
+        {
+            for (let i = 0; i < shape.arrays.position.length; ++i)
+            {
+                this.vertices.push(shape.arrays.position[i].to4(true));
+            }
+        }
+        else
+        {
+            for (let i = 0; i < vertices.length; ++i)
+            {
+                if (vertices[i].length == 3)
+                {
+                    this.vertices.push(vertices[i].to4(true));
+                }
+                else
+                {
+                    this.vertices.push(vertices[i]);
+                }
+            }
+        }
+    }
+
+    // Secondary "constructor" that creates an "invisible" rigid body (i.e. a collider).
+    static createCollider(name, vertices, position, velocity, mass, size, type, is_kinematic)
+    {
+        return new RigidBody(null, null, name, position, velocity, mass, size, type, is_kinematic, vertices);
     }
 
     // (within some margin of distance).

@@ -1,6 +1,7 @@
 import {defs, tiny} from "../../include/common.js";
 import {Contact} from "./contact.js"
-import { GJKCollision } from "./collision.js";
+import { GJKCollision } from "./gjk_collision.js";
+import { EPA } from "./epa.js";
 
 // Pull these names into this module's scope for convenience:
 const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix} = tiny;
@@ -21,6 +22,7 @@ export class PhysicsSim extends Scene
         this.end = false;
 
         this.gjkCollision = new GJKCollision();
+        this.epa = new EPA();
     }
 
     initialize(context, program_state) 
@@ -88,212 +90,34 @@ export class PhysicsSim extends Scene
                 {
                     let rbj = this.rigidbodies.get(Array.from(this.rigidbodies.keys())[j]);
 
-                    if (this.gjkCollision.is_colliding(rbi, rbj))
+                    let gjkResult = this.gjkCollision.is_colliding(rbi, rbj);
+                    if (!gjkResult.areColliding)
                     {
-                        //console.log("COLLISION: ", rbi.position, rbj.position);
-                        if (rbi.type == "sphere" && rbj.type == "sphere")
-                        {
-                            var deltaPos = rbj.position.minus(rbi.position);
-                            var centerDistanceSq = deltaPos.dot(deltaPos);
-                            var combinedRadiiSq = (rbi.size[0] + rbj.size[0])**2;
-                            // If the two objects overlap, create a new Contact constraint object
-                            // that stores collision information that we'll use to resolve necessary
-                            // collision behavior later (by directly manipulating the object velocities
-                            // via a Sequential Impulse iteration, as will be seen later).
-                            var contact = new Contact();
-                            // The contact normal always points from RB i to RB j (for sign consistency).
-                            contact.normal = deltaPos.times(1 / Math.sqrt(centerDistanceSq));
-                            // Get the global positions of the deepest penetration points on each
-                            // object.
-                            contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size[0]));
-                            contact.globalPositionJ = rbj.position.plus(contact.normal.times(-rbj.size[0]));
-                            // Get the vectors pointing from the object center of mass to the point
-                            // of deepest penetration in the object's local reference frame.
-                            contact.localPositionI = contact.normal.times(rbi.size[0]);
-                            contact.localPositionJ = contact.normal.times(-rbj.size[0]);
-                            // Get the object velocities at collision.
-                            contact.closingVelocityI = rbi.velocity;
-                            contact.closingVelocityJ = rbj.velocity;
-
-                            const key_array = [rbi.name, rbj.name];
-                            this.contact_constraints.set(key_array, contact);
-                        }
-                        else if (rbi.type == "sphere" && rbj.type == "cube")
-                        {
-                            // Get box closest point to sphere center by clamping.
-                            var clstBoxPnt = vec4(0, 0, 0, 1);
-                            clstBoxPnt[0] = Math.max(rbj.position[0] - rbj.size[0], Math.min(rbi.position[0], rbj.position[0] + rbj.size[0]));
-                            clstBoxPnt[1] = Math.max(rbj.position[1] - rbj.size[1], Math.min(rbi.position[1], rbj.position[1] + rbj.size[1]));
-                            clstBoxPnt[2] = Math.max(rbj.position[2] - rbj.size[2], Math.min(rbi.position[2], rbj.position[2] + rbj.size[2]));
-                            // Check if the closest point we determined above is inside
-                            // the sphere.
-                            const distance = Math.sqrt((clstBoxPnt[0] - rbi.position[0])**2 + (clstBoxPnt[1] - rbi.position[1])**2 + (clstBoxPnt[2] - rbi.position[2])**2);
-                            // If the closest point on the box is inside the sphere, create a new
-                            // Contact constraint object.
-                            var contact = new Contact();
-                            // The contact normal always points from RB i to RB j (for sign consistency),
-                            // and in this case will point from the sphere's center towards the closest
-                            // penetrating point on the cube.
-                            contact.normal = clstBoxPnt.minus(rbi.position).times(1 / distance);
-                            // Get the global positions of the deepest penetration points on each
-                            // object.
-                            contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size[0]));
-                            contact.globalPositionJ = clstBoxPnt;
-                            // Get the vectors pointing from the object center of mass to the point
-                            // of deepest penetration in the object's local reference frame.
-                            contact.localPositionI = contact.normal.times(rbi.size[0]);
-                            contact.localPositionJ = clstBoxPnt.minus(rbj.position);
-                            // Get the object velocities at collision.
-                            contact.closingVelocityI = rbi.velocity;
-                            contact.closingVelocityJ = rbj.velocity;
-
-                            const key_array = [rbi.name, rbj.name];
-                            this.contact_constraints.set(key_array, contact);
-                        }
-                        else if (rbi.type == "cube" && rbj.type == "sphere")
-                        {
-                            // Get box closest point to sphere center by clamping.
-                            var clstBoxPnt = vec4(0, 0, 0, 1);
-                            clstBoxPnt[0] = Math.max(rbi.position[0] - rbi.size[0], Math.min(rbj.position[0], rbi.position[0] + rbi.size[0]));
-                            clstBoxPnt[1] = Math.max(rbi.position[1] - rbi.size[1], Math.min(rbj.position[1], rbi.position[1] + rbi.size[1]));
-                            clstBoxPnt[2] = Math.max(rbi.position[2] - rbi.size[2], Math.min(rbj.position[2], rbi.position[2] + rbi.size[2]));
-
-                            // Check if the closest point we determined above is inside
-                            // the sphere.
-                            const distance = Math.sqrt((clstBoxPnt[0] - rbj.position[0])**2 + (clstBoxPnt[1] - rbj.position[1])**2 + (clstBoxPnt[2] - rbj.position[2])**2);
-
-                            // If the closest point on the box is inside the sphere, create a new
-                            // Contact constraint object.
-                            var contact = new Contact();
-                            // The contact normal always points from RB i to RB j (for sign consistency),
-                            // and in this case will point from the closest penetrating point on the cube 
-                            // towards the sphere center.
-                            contact.normal = rbj.position.minus(clstBoxPnt).times(1 / distance);
-                            // Get the global positions of the deepest penetration points on each
-                            // object.
-                            contact.globalPositionI = clstBoxPnt;
-                            contact.globalPositionJ = rbj.position.plus(contact.normal.times(rbj.size[0]));
-                            // Get the vectors pointing from the object center of mass to the point
-                            // of deepest penetration in the object's local reference frame.
-                            contact.localPositionI = clstBoxPnt.minus(rbi.position);
-                            contact.localPositionJ = contact.normal.times(rbj.size[0]);
-                            // Get the object velocities at collision.
-                            contact.closingVelocityI = rbi.velocity;
-                            contact.closingVelocityJ = rbj.velocity;
-
-                            const key_array = [rbi.name, rbj.name];
-                            this.contact_constraints.set(key_array, contact);
-                        }
+                        continue;
                     }
 
-                    // Sphere-sphere collision
-                    /*if (rbi.type == "sphere" && rbj.type == "sphere")
-                    {
-                        var deltaPos = rbj.position.minus(rbi.position);
-                        var centerDistanceSq = deltaPos.dot(deltaPos);
-                        var combinedRadiiSq = (rbi.size[0] + rbj.size[0])**2;
-                        // Skip if the two objects don't intersect/collide.
-                        if (centerDistanceSq > combinedRadiiSq)
-                        {
-                            continue;
-                        }
-                        // If the two objects overlap, create a new Contact constraint object
-                        // that stores collision information that we'll use to resolve necessary
-                        // collision behavior later (by directly manipulating the object velocities
-                        // via a Sequential Impulse iteration, as will be seen later).
-                        var contact = new Contact();
-                        // The contact normal always points from RB i to RB j (for sign consistency).
-                        contact.normal = deltaPos.times(1 / Math.sqrt(centerDistanceSq));
-                        // Get the global positions of the deepest penetration points on each
-                        // object.
-                        contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size[0]));
-                        contact.globalPositionJ = rbj.position.plus(contact.normal.times(-rbj.size[0]));
-                        // Get the vectors pointing from the object center of mass to the point
-                        // of deepest penetration in the object's local reference frame.
-                        contact.localPositionI = contact.normal.times(rbi.size[0]);
-                        contact.localPositionJ = contact.normal.times(-rbj.size[0]);
-                        // Get the object velocities at collision.
-                        contact.closingVelocityI = rbi.velocity;
-                        contact.closingVelocityJ = rbj.velocity;
+                    // If we find a valid collision, transform the resultant simplex
+                    // into a 3-simplex and pass it on to the EPA to find the minimum
+                    // translation vector (MTV) for resolving said collision.
+                    gjkResult.simplex.transform_into_3_simplex();
+                    let epaResult = this.epa.solve(rbi, rbj, gjkResult.simplex);
 
-                        const key_array = [rbi.name, rbj.name];
-                        this.contact_constraints.set(key_array, contact);
-                    }
-                    else if (rbi.type == "sphere" && rbj.type == "cube")
-                    {
-                        // Get box closest point to sphere center by clamping.
-                        var clstBoxPnt = vec4(0, 0, 0, 1);
-                        clstBoxPnt[0] = Math.max(rbj.position[0] - rbj.size[0], Math.min(rbi.position[0], rbj.position[0] + rbj.size[0]));
-                        clstBoxPnt[1] = Math.max(rbj.position[1] - rbj.size[1], Math.min(rbi.position[1], rbj.position[1] + rbj.size[1]));
-                        clstBoxPnt[2] = Math.max(rbj.position[2] - rbj.size[2], Math.min(rbi.position[2], rbj.position[2] + rbj.size[2]));
-                        // Check if the closest point we determined above is inside
-                        // the sphere.
-                        const distance = Math.sqrt((clstBoxPnt[0] - rbi.position[0])**2 + (clstBoxPnt[1] - rbi.position[1])**2 + (clstBoxPnt[2] - rbi.position[2])**2);
-                        if (distance > rbi.size[0])
-                        {
-                            continue;
-                        }
-                        // If the closest point on the box is inside the sphere, create a new
-                        // Contact constraint object.
-                        var contact = new Contact();
-                        // The contact normal always points from RB i to RB j (for sign consistency),
-                        // and in this case will point from the sphere's center towards the closest
-                        // penetrating point on the cube.
-                        contact.normal = clstBoxPnt.minus(rbi.position).times(1 / distance);
-                        // Get the global positions of the deepest penetration points on each
-                        // object.
-                        contact.globalPositionI = rbi.position.plus(contact.normal.times(rbi.size[0]));
-                        contact.globalPositionJ = clstBoxPnt;
-                        // Get the vectors pointing from the object center of mass to the point
-                        // of deepest penetration in the object's local reference frame.
-                        contact.localPositionI = contact.normal.times(rbi.size[0]);
-                        contact.localPositionJ = clstBoxPnt.minus(rbj.position);
-                        // Get the object velocities at collision.
-                        contact.closingVelocityI = rbi.velocity;
-                        contact.closingVelocityJ = rbj.velocity;
+                    // Create a new contact constraint for the collision.
+                    let contact = new Contact();
+                    contact.normal = epaResult.axis.to4(false);
+                    // Get the global positions of the deepest penetration points on each object.
+                    contact.globalPositionI = rbi.position.plus(contact.normal.times(epaResult.dist));
+                    contact.globalPositionJ = rbj.position.plus(contact.normal.times(-epaResult.dist));
+                    // Get the vectors pointing from the object center of mass to the point
+                    // of deepest penetration in the object's local reference frame.
+                    contact.localPositionI = contact.normal.times(epaResult.dist);
+                    contact.localPositionJ = contact.normal.times(-epaResult.dist);
+                    // Get the object velocities at collision.
+                    contact.closingVelocityI = rbi.velocity;
+                    contact.closingVelocityJ = rbj.velocity;
 
-                        const key_array = [rbi.name, rbj.name];
-                        this.contact_constraints.set(key_array, contact);
-                    }
-                    else if (rbi.type == "cube" && rbj.type == "sphere")
-                    {
-                        // Get box closest point to sphere center by clamping.
-                        var clstBoxPnt = vec4(0, 0, 0, 1);
-                        clstBoxPnt[0] = Math.max(rbi.position[0] - rbi.size[0], Math.min(rbj.position[0], rbi.position[0] + rbi.size[0]));
-                        clstBoxPnt[1] = Math.max(rbi.position[1] - rbi.size[1], Math.min(rbj.position[1], rbi.position[1] + rbi.size[1]));
-                        clstBoxPnt[2] = Math.max(rbi.position[2] - rbi.size[2], Math.min(rbj.position[2], rbi.position[2] + rbi.size[2]));
-
-                        // Check if the closest point we determined above is inside
-                        // the sphere.
-                        const distance = Math.sqrt((clstBoxPnt[0] - rbj.position[0])**2 + (clstBoxPnt[1] - rbj.position[1])**2 + (clstBoxPnt[2] - rbj.position[2])**2);
-                        if (distance > rbj.size[0])
-                        {
-                            continue;
-                        }
-
-                        // If the closest point on the box is inside the sphere, create a new
-                        // Contact constraint object.
-                        var contact = new Contact();
-                        // The contact normal always points from RB i to RB j (for sign consistency),
-                        // and in this case will point from the closest penetrating point on the cube 
-                        // towards the sphere center.
-                        contact.normal = rbj.position.minus(clstBoxPnt).times(1 / distance);
-                        // Get the global positions of the deepest penetration points on each
-                        // object.
-                        contact.globalPositionI = clstBoxPnt;
-                        contact.globalPositionJ = rbj.position.plus(contact.normal.times(rbj.size[0]));
-                        // Get the vectors pointing from the object center of mass to the point
-                        // of deepest penetration in the object's local reference frame.
-                        contact.localPositionI = clstBoxPnt.minus(rbi.position);
-                        contact.localPositionJ = contact.normal.times(rbj.size[0]);
-                        // Get the object velocities at collision.
-                        contact.closingVelocityI = rbi.velocity;
-                        contact.closingVelocityJ = rbj.velocity;
-
-                        const key_array = [rbi.name, rbj.name];
-                        this.contact_constraints.set(key_array, contact);
-                    }
-                    */
+                    const key_array = [rbi.name, rbj.name];
+                    this.contact_constraints.set(key_array, contact);
                 }
             }
 
@@ -368,12 +192,12 @@ export class PhysicsSim extends Scene
 
                     const separation = -Math.abs(contact.globalPositionJ.minus(contact.globalPositionI).dot(contact.normal.times(-1)));
 
-                    // Magic number by 0.2 seems to be a good amount
-                    const steeringConstant = 0.2
+                    // Magic number by 0.01 seems to be a good amount
+                    const steeringConstant = 0.01;
                     // Limit the amount of correction at once for stability
                     const maxCorrection = -5;
                     // Be tolerant of 1 pixel of overlap
-                    const slop = 2;
+                    const slop = 1;
                 
                     // Clamp to avoid over-correction
                     // Remember that we are shooting for 0 overlap in the end
