@@ -59,19 +59,19 @@ export class TestScene extends PhysicsSim
         this.rigidbodies.set("Wall4", new RigidBody(this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), "Wall4", vec4(0, 0, -21, 1), vec4(0, 0, 0, 0), 1, vec3(20, 20, 1), "cube", true));
         this.rigidbodies.set("Ceiling", new RigidBody(this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), "Ceiling", vec4(0, 21, 0, 1), vec4(0, 0, 0, 0), 1, vec3(20, 1, 20), "cube", true));
         this.rigidbodies.set("Cube1", new RigidBody(this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), "Cube1", vec4(0, 17.5, 0, 1), vec4(0, 0, 0, 0), 1, vec3(1, 1, 1), "cube", false));
-        this.rigidbodies.set("Cube2", new RigidBody(this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), "Cube2", vec4(3, 10, 0, 1), vec4(0, 0, 0, 0), 1, vec3(1, 1, 1), "cube", false));
-        this.rigidbodies.set("Cube3", new RigidBody(this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), "Cube3", vec4(-4, 11, 2, 1), vec4(0, 0, 0, 0), 1, vec3(1, 1, 1), "cube", false));
-        this.rigidbodies.set("Cube4", new RigidBody(this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), "Cube4", vec4(0, 17.5, 5, 1), vec4(0, 0, 0, 0), 1, vec3(1, 1, 1), "cube", false));
+        this.rigidbodies.set("Cube2", new RigidBody(this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), "Cube2", vec4(0, 10, 0.1, 1), vec4(0, 0, 0, 0), 1, vec3(1, 1, 1), "cube", false));
+        this.rigidbodies.set("Cube3", new RigidBody(this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), "Cube3", vec4(-0.1, 5, 0, 1), vec4(0, 0, 0, 0), 1, vec3(1, 1, 1), "cube", false));
+        this.rigidbodies.set("Cube4", new RigidBody(this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), "Cube4", vec4(0.1, 0, 0.1, 1), vec4(0, 0, 0, 0), 1, vec3(1, 1, 1), "cube", false));
         
-        this.forces.push(new Force(["Cube1"], vec4(0, -0.5, 0, 0), false, 5));
-        this.forces.push(new Force(["Cube2"], vec4(0, -0.5, 0, 0), false, 5));
-        this.forces.push(new Force(["Cube3"], vec4(0, -0.5, 0, 0), false, 5));
-        this.forces.push(new Force(["Cube4"], vec4(0, -0.5, 0, 0), false, 5));
+        this.forces.push(new Force(["Cube1"], vec4(0, -0.5, 0, 0), true, 5));
+        this.forces.push(new Force(["Cube2"], vec4(0, -0.5, 0, 0), true, 5));
+        this.forces.push(new Force(["Cube3"], vec4(0, -0.5, 0, 0), true, 5));
+        this.forces.push(new Force(["Cube4"], vec4(0, -0.5, 0, 0), true, 5));
 
-        this.forces.push(new Force(["Cube1"], vec4(0.5, 0, 0, 0), false, 3));
-        this.forces.push(new Force(["Cube2"], vec4(-0.7, 0, -1, 0), false, 5));
-        this.forces.push(new Force(["Cube3"], vec4(0, 0, -1, 0), false, 7));
-        this.forces.push(new Force(["Cube4"], vec4(0.8, 0, -0.5, 0), false, 6));
+        //this.forces.push(new Force(["Cube1"], vec4(0.5, 0, 0, 0), false, 3));
+        //this.forces.push(new Force(["Cube2"], vec4(-0.7, 0, -1, 0), false, 5));
+        //this.forces.push(new Force(["Cube3"], vec4(0, 0, -1, 0), false, 7));
+        //this.forces.push(new Force(["Cube4"], vec4(0.8, 0, -0.5, 0), false, 6));
     }
 
     display(context, program_state)

@@ -102,6 +102,11 @@ export class PhysicsSim extends Scene
                     gjkResult.simplex.transform_into_3_simplex();
                     let epaResult = this.epa.solve(rbi, rbj, gjkResult.simplex);
 
+                    if (epaResult == null)
+                    {
+                        continue;
+                    }
+
                     // Create a new contact constraint for the collision.
                     let contact = new Contact();
                     contact.normal = epaResult.axis.to4(false);
@@ -144,7 +149,7 @@ export class PhysicsSim extends Scene
 
                     //const restitution = bodyA.restitution * bodyB.restitution;
                     // restitution = 1 -> completely inelastic. restitution = 3 -> fully elastic.
-                    const restitution = 2.99;
+                    const restitution = 0;
                     
                     // Compute impulse in normal direction
                     const normalVelocityMagnitude = relativeVelocity.dot(contact.normal);

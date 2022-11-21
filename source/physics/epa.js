@@ -19,6 +19,10 @@ export class EPA
         while (true) 
         {
             let face = this.#findClosestFace(simplex, simplexFaces);
+            if (face.norm == undefined)
+            {
+                break;
+            }
             let point = support(rbi, face.norm).minus(support(rbj, face.norm.times(-1)));
             let dist = point.to3().dot(face.norm);
 
