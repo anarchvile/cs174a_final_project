@@ -90,7 +90,7 @@ export class PhysicsSim extends Scene
                 {
                     let rbj = this.rigidbodies.get(Array.from(this.rigidbodies.keys())[j]);
 
-                    let gjkResult = this.gjkCollision.is_colliding(rbi, rbj);
+                    /*let gjkResult = this.gjkCollision.is_colliding(rbi, rbj);
                     if (!gjkResult.areColliding)
                     {
                         continue;
@@ -119,10 +119,240 @@ export class PhysicsSim extends Scene
                     contact.localPositionJ = contact.normal.times(-epaResult.dist);
                     // Get the object velocities at collision.
                     contact.closingVelocityI = rbi.velocity;
-                    contact.closingVelocityJ = rbj.velocity;
+                    contact.closingVelocityJ = rbj.velocity;*/
 
-                    const key_array = [rbi.name, rbj.name];
-                    this.contact_constraints.set(key_array, contact);
+                    // Sphere-sphere collision
+                    if ((rbi.type == "sphere" && rbj.type == "sphere") || (rbi.type == "sphere" && rbj.type == "cube") || (rbi.type == "cube" && rbj.type == "sphere"))
+                    {
+                        let gjkResult = this.gjkCollision.is_colliding(rbi, rbj);
+                        if (!gjkResult.areColliding)
+                        {
+                            continue;
+                        }
+
+                        // If we find a valid collision, transform the resultant simplex
+                        // into a 3-simplex and pass it on to the EPA to find the minimum
+                        // translation vector (MTV) for resolving said collision.
+                        gjkResult.simplex.transform_into_3_simplex();
+                        let epaResult = this.epa.solve(rbi, rbj, gjkResult.simplex);
+
+                        if (epaResult == null)
+                        {
+                            continue;
+                        }
+
+                        // Create a new contact constraint for the collision.
+                        let contact = new Contact();
+                        contact.normal = epaResult.axis.to4(false);
+                        // Get the global positions of the deepest penetration points on each object.
+                        contact.globalPositionI = rbi.position.plus(contact.normal.times(epaResult.dist));
+                        contact.globalPositionJ = rbj.position.plus(contact.normal.times(-epaResult.dist));
+                        // Get the vectors pointing from the object center of mass to the point
+                        // of deepest penetration in the object's local reference frame.
+                        contact.localPositionI = contact.normal.times(epaResult.dist);
+                        contact.localPositionJ = contact.normal.times(-epaResult.dist);
+                        const key_array = [rbi.name, rbj.name];
+                        this.contact_constraints.set(key_array, contact);
+                    }
+                    /*if (rbi.type == "sphere" && rbj.type == "sphere")
+                    {
+                        const penVec = rbj.position.minus(rbi.position);
+                        if (penVec.to3().norm() >= rbi.size[0] + rbj.size[0])
+                        {
+                            continue;
+                        }
+
+                        let contact = new Contact();
+                        // The contact normal always points from RB i to RB j (for sign consistency).
+                        // Get the global positions of the deepest penetration points on each
+                        // object.
+                        contact.globalPositionI = rbi.position.plus(penVec);
+                        contact.globalPositionJ = rbj.position.minus(penVec);
+                        // Get the vectors pointing from the object center of mass to the point
+                        // of deepest penetration in the object's local reference frame.
+                        contact.localPositionI = penVec;
+                        contact.localPositionJ = penVec.times(-1);
+
+                        contact.normal = penVec.to3();
+                        if (contact.normal.norm() != 0)
+                        {
+                            contact.normal = contact.normal.normalized();
+                        }
+                        contact.normal = contact.normal.to4(false);
+
+                        const key_array = [rbi.name, rbj.name];
+                        this.contact_constraints.set(key_array, contact);
+                    }
+                    else if (rbi.type == "sphere" && rbj.type == "cube")
+                    {
+                        // Get box closest point to sphere center by clamping.
+                        let clstBoxPnt = vec4(0, 0, 0, 1);
+                        clstBoxPnt[0] = Math.max(rbj.position[0] - rbj.size[0], Math.min(rbi.position[0], rbj.position[0] + rbj.size[0]));
+                        clstBoxPnt[1] = Math.max(rbj.position[1] - rbj.size[1], Math.min(rbi.position[1], rbj.position[1] + rbj.size[1]));
+                        clstBoxPnt[2] = Math.max(rbj.position[2] - rbj.size[2], Math.min(rbi.position[2], rbj.position[2] + rbj.size[2]));
+                        // Check if the closest point we determined above is inside
+                        // the sphere.
+                        const distance = Math.sqrt((clstBoxPnt[0] - rbi.position[0])**2 + (clstBoxPnt[1] - rbi.position[1])**2 + (clstBoxPnt[2] - rbi.position[2])**2);
+                        if (distance > rbi.size[0])
+                        {
+                            continue;
+                        }
+
+                        let contact = new Contact();
+                        // Get the global positions of the deepest penetration points on each
+                        // object.
+                        contact.globalPositionI = rbi.position.plus(clstBoxPnt.to3().normalized().times(rbi.size[0]).to4(false));
+                        contact.globalPositionJ = clstBoxPnt;
+                        // Get the vectors pointing from the object center of mass to the point
+                        // of deepest penetration in the object's local reference frame.
+                        contact.localPositionI = clstBoxPnt.to3().normalized().times(rbi.size[0]).to4(true);
+                        contact.localPositionJ = clstBoxPnt.minus(rbj.position);
+                        contact.normal = contact.globalPositionJ.minus(contact.globalPositionI).to3();
+                        if (contact.normal.norm() != 0)
+                        {
+                            contact.normal = contact.normal.normalized();
+                        }
+                        contact.normal = contact.normal.to4(false);
+
+                        const key_array = [rbi.name, rbj.name];
+                        this.contact_constraints.set(key_array, contact);
+                    }
+                    else if (rbi.type == "cube" && rbj.type == "sphere")
+                    {
+                        // Get box closest point to sphere center by clamping.
+                        let clstBoxPnt = vec4(0, 0, 0, 1);
+                        clstBoxPnt[0] = Math.max(rbi.position[0] - rbi.size[0], Math.min(rbj.position[0], rbi.position[0] + rbi.size[0]));
+                        clstBoxPnt[1] = Math.max(rbi.position[1] - rbi.size[1], Math.min(rbj.position[1], rbi.position[1] + rbi.size[1]));
+                        clstBoxPnt[2] = Math.max(rbi.position[2] - rbi.size[2], Math.min(rbj.position[2], rbi.position[2] + rbi.size[2]));
+                        // Check if the closest point we determined above is inside
+                        // the sphere.
+                        const distance = Math.sqrt((clstBoxPnt[0] - rbj.position[0])**2 + (clstBoxPnt[1] - rbj.position[1])**2 + (clstBoxPnt[2] - rbj.position[2])**2);
+                        if (distance > rbj.size[0])
+                        {
+                            continue;
+                        }
+                        
+                        let contact = new Contact();
+                        // Get the global positions of the deepest penetration points on each
+                        // object.
+                        contact.globalPositionI = clstBoxPnt;
+                        contact.globalPositionJ = rbj.position.plus(clstBoxPnt.to3().normalized().times(rbj.size[0]).to4(false));
+                        // Get the vectors pointing from the object center of mass to the point
+                        // of deepest penetration in the object's local reference frame.
+                        contact.localPositionI = clstBoxPnt.minus(rbi.position);
+                        contact.localPositionJ = clstBoxPnt.to3().normalized().times(rbj.size[0]).to4(true);
+                        contact.normal = contact.globalPositionI.minus(contact.globalPositionJ).to3();
+                        if (contact.normal.norm() != 0)
+                        {
+                            contact.normal = contact.normal.normalized();
+                        }
+                        contact.normal = contact.normal.to4(false);
+
+                        const key_array = [rbi.name, rbj.name];
+                        this.contact_constraints.set(key_array, contact);
+                    }*/
+                    else if (rbi.type == "cube" && rbj.type == "cube")
+                    {
+                        // Check if the two boxes overlap.
+                        if 
+                        (
+                            !(rbi.position[0] - rbi.size[0] <= rbj.position[0] + rbj.size[0] &&
+                            rbi.position[0] + rbi.size[0] >= rbj.position[0] - rbj.size[0] &&
+                            rbi.position[1] - rbi.size[1] <= rbj.position[1] + rbj.size[1] &&
+                            rbi.position[1] + rbi.size[1] >= rbj.position[1] - rbj.size[1] &&
+                            rbi.position[2] - rbi.size[2] <= rbj.position[2] + rbj.size[2] &&
+                            rbi.position[2] + rbi.size[2] >= rbj.position[2] - rbj.size[2])
+                        )
+                        {
+                            continue;
+                        }
+
+                        let contact = new Contact();
+
+                        // Get the point on box I that is closest to box J.
+                        let pntOnIClstToJ = vec4(0, 0, 0, 1);
+                        pntOnIClstToJ[0] = Math.max(rbi.position[0] - rbi.size[0], Math.min(rbj.position[0], rbi.position[0] + rbi.size[0]));
+                        pntOnIClstToJ[1] = Math.max(rbi.position[1] - rbi.size[1], Math.min(rbj.position[1], rbi.position[1] + rbi.size[1]));
+                        pntOnIClstToJ[2] = Math.max(rbi.position[2] - rbi.size[2], Math.min(rbj.position[2], rbi.position[2] + rbi.size[2]));
+                        // Get the point on box J that is closest to box I.
+                        let pntOnJClstToI = vec4(0, 0, 0, 1);
+                        pntOnJClstToI[0] = Math.max(rbj.position[0] - rbj.size[0], Math.min(rbi.position[0], rbj.position[0] + rbj.size[0]));
+                        pntOnJClstToI[1] = Math.max(rbj.position[1] - rbj.size[1], Math.min(rbi.position[1], rbj.position[1] + rbj.size[1]));
+                        pntOnJClstToI[2] = Math.max(rbj.position[2] - rbj.size[2], Math.min(rbi.position[2], rbj.position[2] + rbj.size[2]));
+
+                        contact.globalPositionI = pntOnIClstToJ;
+                        contact.globalPositionJ = pntOnJClstToI;
+
+                        contact.localPositionI = pntOnIClstToJ.minus(rbi.position);
+                        contact.localPositionJ = pntOnJClstToI.minus(rbj.position);
+
+                        //contact.normal = rbi.velocity.minus(rbj.velocity);
+                        
+                        let norms = [];
+                        let dir = rbj.position.minus(rbi.position);
+
+                        // Clamp on x-axis, check if dir penetrates the two AABB planes perpendicular to the x-axis.
+                        if (dir[0] != 0)
+                        {   
+                            const alpha = Math.abs(rbi.size[0] / dir[0]);
+                            if (Math.abs(alpha * dir[1]) <= rbi.size[1] && Math.abs(alpha * dir[2]) <= rbi.size[2])
+                            {
+                                if (dir[0] > 0)
+                                {
+                                    norms.push(vec4(1, 0, 0, 0));
+                                }
+                                else
+                                {
+                                    norms.push(vec4(-1, 0, 0, 0));
+                                }
+                            }
+                        }
+                        // Clamp on y-axis, check if dir penetrates the two AABB planes perpendicular to the y-axis.
+                        if (dir[1] != 0)
+                        {   
+                            const alpha = Math.abs(rbi.size[1] / dir[1]);
+                            if (Math.abs(alpha * dir[0]) <= rbi.size[0] && Math.abs(alpha * dir[2]) <= rbi.size[2])
+                            {
+                                if (dir[1] > 0)
+                                {
+                                    norms.push(vec4(0, 1, 0, 0));
+                                }
+                                else
+                                {
+                                    norms.push(vec4(0, -1, 0, 0));
+                                }
+                            }
+                        }
+                        // Clamp on z-axis, check if dir penetrates the two AABB planes perpendicular to the z-axis.
+                        if (dir[2] != 0)
+                        {   
+                            const alpha = Math.abs(rbi.size[2] / dir[2]);
+                            if (Math.abs(alpha * dir[0]) <= rbi.size[0] && Math.abs(alpha * dir[1]) <= rbi.size[1])
+                            {
+                                if (dir[2] > 0)
+                                {
+                                    norms.push(vec4(0, 0, 1, 0));
+                                }
+                                else
+                                {
+                                    norms.push(vec4(0, 0, -1, 0));
+                                }
+                            }
+                        }
+                        
+                        for (let n of norms)
+                        {
+                            contact.normal = contact.normal.plus(n);
+                        }
+                        
+                        if (contact.normal.norm() != 0)
+                        {
+                            contact.normal = contact.normal.to3().normalized().to4(false);
+                        }
+
+                        const key_array = [rbi.name, rbj.name];
+                        this.contact_constraints.set(key_array, contact);
+                    }
                 }
             }
 
@@ -149,8 +379,16 @@ export class PhysicsSim extends Scene
 
                     //const restitution = bodyA.restitution * bodyB.restitution;
                     // restitution = 1 -> completely inelastic. restitution = 3 -> fully elastic.
-                    const restitution = 0;
-                    
+                    let restitution = 0;
+                    if (rbi.type == "cube" && rbj.type == "cube")
+                    {
+                        restitution = 3;
+                    }
+                    else
+                    {
+                        restitution = 2.99;
+                    }
+
                     // Compute impulse in normal direction
                     const normalVelocityMagnitude = relativeVelocity.dot(contact.normal);
                     let impulseMagnitude = (-(1 + restitution) * normalVelocityMagnitude) / effectiveMass;
@@ -162,10 +400,7 @@ export class PhysicsSim extends Scene
                     impulseMagnitude = newImpulse - contact.normalImpulseSum;
                     contact.normalImpulseSum = newImpulse;
                     const impulseVector = contact.normal.times(impulseMagnitude);
-                    // By convention the normal points away from A, so negate
-                    //contact.bodyA.applyImpulse(point.point, impulseVector.negate());
-                    //contact.bodyB.applyImpulse(point.point, impulse);
-                    //console.log(rbi.velocity, rbj.velocity, impulseVector);
+                    // By convention the normal points away from rbi, so negate
 
                     if (!rbi.is_kinematic)
                     {
@@ -178,16 +413,30 @@ export class PhysicsSim extends Scene
                 }
             }
 
-            // Step 5: Integrate velocities to obtain new object positions.
+            // Step 5: Clamp velocities so that they don't grow too large.
             for (const key of this.rigidbodies.keys())
             {
-                if (!this.rigidbodies.get(key).is_kinematic)
+                let rb = this.rigidbodies.get(key);
+                if (!rb.is_kinematic)
                 {
-                    this.rigidbodies.get(key).position = this.rigidbodies.get(key).position.plus(this.rigidbodies.get(key).velocity.times(this.dt));
+                    if (rb.velocity.norm() > 10)
+                    {
+                        rb.velocity = rb.velocity.normalized().times(10);
+                    }
                 }
             }
 
-            // Step 6: Apply position constraint to ensure that there is no object overlap.
+            // Step 6: Integrate velocities to obtain new object positions.
+            for (const key of this.rigidbodies.keys())
+            {
+                let rb = this.rigidbodies.get(key);
+                if (!rb.is_kinematic)
+                {
+                    rb.position = rb.position.plus(rb.velocity.times(this.dt));
+                }
+            }
+
+            // Step 7: Apply position constraint to ensure that there is no object overlap.
             for (var i = 0; i < 3; ++i)
             {
                 for (const [key, contact] of this.contact_constraints)
@@ -197,22 +446,31 @@ export class PhysicsSim extends Scene
 
                     const separation = -Math.abs(contact.globalPositionJ.minus(contact.globalPositionI).dot(contact.normal.times(-1)));
 
+                    // Spheres
                     // Magic number by 0.01 seems to be a good amount
-                    const steeringConstant = 0.01;
+                    const steeringConstant = 0.001;
                     // Limit the amount of correction at once for stability
-                    const maxCorrection = -5;
+                    const maxCorrection = -10;
                     // Be tolerant of 1 pixel of overlap
                     const slop = 1;
+                    // Cubes
+                    // Magic number by 0.01 seems to be a good amount
+                    //const steeringConstant = 0.001;
+                    // Limit the amount of correction at once for stability
+                    //const maxCorrection = -10;
+                    // Be tolerant of 1 pixel of overlap
+                    //const slop = 1;
                 
                     // Clamp to avoid over-correction
                     // Remember that we are shooting for 0 overlap in the end
                     //const steeringForce = Math.clamp(steeringConstant * (separation + slop), maxCorrection, 0);
                     const steeringForce = Math.max(maxCorrection, Math.min(steeringConstant * (separation + slop), 0));
                     var impulse = contact.normal.times(-steeringForce / (1 / rbi.mass + 1 / rbj.mass));
-                    // NOTE! Update positions of bodyA & bodyB directly by "pseudo-impulse", we still use the same impulse formula from above
+                    
+                    // Update positions of rbi & rbj directly by "pseudo-impulse", we still use the same impulse formula from above
                     if (!rbi.is_kinematic) 
                     {
-                        rbi.position = rbi.position.plus(impulse.times(-1).times(1 / rbi.mass));
+                        rbi.position = rbi.position.minus(impulse.times(1 / rbi.mass));
                         //bodyA.xf.rotation -= point.aToContact.cross(impulse) * bodyA.inverseInertia;
                     }
                 
@@ -227,85 +485,8 @@ export class PhysicsSim extends Scene
             // TODO: Find a way to both decrease slop and reduce resulting jittering behavior,
             // add rotational dynamics, cache previous contact contraints to use for "warm
             // starts," see if we can make the restitution parameter less sensitive overall, 
-            // add friction, implement GJB and EPA algorithms.
+            // add friction.
 
-            /*
-            // Constraint resolution - using the Sequential Impulse method, iterate through
-            // all contact constraints and resolve them (i.e. apply appropriate velocities
-            // to objects so that they push away from one another AND offset their positions
-            // to resolve any penetrations).
-            var idx = 0;
-            while (idx < 1)
-            {
-                for (const [key, value] of this.contact_constraints)
-                {
-                    var rbi = this.rigidbodies.get(key[0]);
-                    var rbj = this.rigidbodies.get(key[1]);
-
-                    var beta = 0.1; // Extra energy term.
-                    var Cr = 0; // Restitution.
-                    var d = value.depth; // Penetration depth.
-                    // b = Total bias term = (Baumgarte Stabilization) + (Restitution).
-                    var b = (-(beta / this.dt) * d) + (Cr * (value.closingVelocityI.times(-1).plus(value.closingVelocityJ).dot(value.normal)));
-
-                    var V = Matrix.of
-                    (
-                        [rbi.velocity[0]], [rbi.velocity[1]], [rbi.velocity[2]], [0], [0], [0], [rbj.velocity[0]], [rbj.velocity[1]], [rbj.velocity[2]], [0], [0], [0]
-                    ); // Concactenated velocity vector, 12x1.
-                    
-                    var n = value.normal.to3();
-                    var rixn = value.localPositionI.to3().times(-1).cross(n);
-                    var rjxn = value.localPositionJ.to3().cross(n);
-                    var J = Matrix.of
-                    (
-                        [n.times(-1)[0], n.times(-1)[1], n.times(-1)[2], rixn[0], rixn[1], rixn[2], n[0], n[1], n[2], rjxn[0], rjxn[1], rjxn[2]]
-                    ); // Jacobian matrix, 1x12.
-                    var J_T = Matrix.of
-                    (
-                        [n.times(-1)[0]], [n.times(-1)[1]], [n.times(-1)[2]], [rixn[0]], [rixn[1]], [rixn[2]], [n[0]], [n[1]], [n[2]], [rjxn[0]], [rjxn[1]], [rjxn[2]]
-                    );
-
-                    var M_inv = Matrix.of
-                    (
-                        [1 / rbi.mass, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 1 / rbi.mass, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 1 / rbi.mass, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 1 / rbj.mass, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 1 / rbj.mass, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 1 / rbj.mass, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                    ); // Inverse mass matrix, 12x12. TODO: More general inverse computation
-
-                    var lambda_corrective = -1 * (J.times(V)[0][0] + b) / J.times(M_inv).times(J_T)[0][0]; // Tentative Lagrangian Multiplier.
-                    var lambda_old = value.normalImpulseSum;
-                    value.normalImpulseSum += lambda_corrective;
-                    if (value.normalImpulseSum < 0)
-                    {
-                        value.normalImpulseSum = 0;
-                    }
-                    var lambda = value.normalImpulseSum - lambda_old;
-
-                    var deltaV = M_inv.times(J_T).times(lambda);
-                    V = V.plus(deltaV);
-
-                    if (!this.rigidbodies.get(key[0]).is_kinematic)
-                    {
-                        this.rigidbodies.get(key[0]).velocity = vec4(V[0][0], V[1][0], V[2][0], 0);
-                    }
-                    if (!this.rigidbodies.get(key[1]).is_kinematic)
-                    {
-                        this.rigidbodies.get(key[1]).velocity = vec4(V[6][0], V[7][0], V[8][0], 0);
-                    }
-                }
-
-                idx += 1;
-            }*/
-            
             // Clear all constraints since they've been solved-for.
             this.contact_constraints.clear();
             // TODO: Maybe expose another method for applying forces here
