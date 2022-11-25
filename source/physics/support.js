@@ -1,25 +1,27 @@
 import {defs, tiny} from "../../include/common.js";
 
 // Pull these names into this module's scope for convenience:
-const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
+const {vec3, unsafe3, vec4, Vector3, color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 
-export function support(rb, d)
+export function support(go, d)
 {
-    var highest = Number.MIN_VALUE;
-    var support = vec4(0, 0, 0, 1); // Support is a point, so w = support[3] = 1.
-    var dir = d;
-    //if (dir[3] == undefined)
-    {
-        //dir = dir.to4(false);
-    }
+    let highest = Number.MIN_VALUE;
+    let support = vec4(0, 0, 0, 1); // Support is a point, so w = support[3] = 1.
+    let dir = d;
+    const c = go.get_collider_component();
 
     // TODO: Add general "convex polygon" type.
-    if (rb.type == "cube")
+    if (c.type == "AABB")
     {
-        for (let i = 0; i < rb.vertices.length; ++i) 
+        const AABB_verts = Vector3.cast(
+            [-1, -1, -1], [1, -1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, -1], [-1, 1, -1], [1, 1, 1], [-1, 1, 1],
+            [-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1], [1, -1, 1], [1, -1, -1], [1, 1, 1], [1, 1, -1],
+            [-1, -1, 1], [1, -1, 1], [-1, 1, 1], [1, 1, 1], [1, -1, -1], [-1, -1, -1], [1, 1, -1], [-1, 1, -1]);
+
+        for (let i = 0; i < AABB_verts.length; ++i) 
         {
-            let v = rb.vertices[i];
-            v = Mat4.scale(rb.size[0], rb.size[1], rb.size[2]).times(v);
+            let v = AABB_verts[i];
+            v = Mat4.scale(c.size[0], c.size[1], c.size[2]).times(v);
             //v = Mat4.rotation(0, 1, 0, 0).times(v); // TODO: Rotate object.
             const dot = v.dot(dir);
             if (dot > highest) 
@@ -29,12 +31,12 @@ export function support(rb, d)
             }
         }
     }
-    else if (rb.type == "sphere")
+    else if (c.type == "Sphere")
     {
-        support = Mat4.scale(rb.size[0], rb.size[1], rb.size[2]).times(dir.normalized());
+        support = Mat4.scale(c.radius, c.radius, c.radius).times(dir.normalized());
     }
     
     support[3] = 1;
-    support = Mat4.translation(rb.position[0], rb.position[1], rb.position[2]).times(support);
+    support = Mat4.translation(go.position[0], go.position[1], go.position[2]).times(support);
     return support;
 }

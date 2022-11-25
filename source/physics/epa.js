@@ -2,15 +2,12 @@ import {defs, tiny} from "../../include/common.js";
 import { Simplex } from "../geometry/simplex.js";
 import { support } from "./support.js";
 
-// Pull these names into this module's scope for convenience:
-const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
-
 // https://stackoverflow.com/questions/48979868/implementing-the-expanding-polytope-algorithm-in-3d-space
 export class EPA
 {
-    solve(rbi, rbj, simplex) 
+    solve(goi, goj, simplex) 
     {
-        var simplexFaces = [{a: 0, b: 1, c: 2},
+        var simplex_faces = [{a: 0, b: 1, c: 2},
                             {a: 0, b: 1, c: 3},
                             {a: 0, b: 2, c: 3},
                             {a: 1, b: 2, c: 3}];
@@ -18,12 +15,13 @@ export class EPA
         let ret = null;
         while (true) 
         {
-            let face = this.#findClosestFace(simplex, simplexFaces);
+            let face = this.#find_closest_face(simplex, simplex_faces);
+
             if (face.norm == undefined)
             {
                 break;
             }
-            let point = support(rbi, face.norm).minus(support(rbj, face.norm.times(-1)));
+            let point = support(goi, face.norm).minus(support(goj, face.norm.times(-1)));
             let dist = point.to3().dot(face.norm);
 
             if (dist - face.dist < 0.00001) 
@@ -34,18 +32,18 @@ export class EPA
 
             point[3] = 1;
             simplex.add(point);
-            this.#reconstruct(simplex, simplexFaces, point);
+            this.#reconstruct(simplex, simplex_faces, point);
         }
     
         return ret;
     }
     
-    #reconstruct(simplex, simplexFaces, extendPoint) 
+    #reconstruct(simplex, simplex_faces, extend_point) 
     {
         let removalFaces = [];
-        for (let i = 0; i < simplexFaces.length; ++i) 
+        for (let i = 0; i < simplex_faces.length; ++i) 
         {
-            let face = simplexFaces[i];
+            let face = simplex_faces[i];
             let A = simplex.get_points()[face.a].to3();
             let B = simplex.get_points()[face.b].to3();
             let C = simplex.get_points()[face.c].to3();
@@ -60,7 +58,7 @@ export class EPA
                 norm = norm.times(-1);
             }
 
-            if (norm.dot(extendPoint.minus(A)) > 0)
+            if (norm.dot(extend_point.minus(A)) > 0)
             {
                 removalFaces.push(i);
             }
@@ -70,12 +68,12 @@ export class EPA
         let edges = [];
         for (let i = 0; i < removalFaces.length; ++i) 
         {
-            let face = simplexFaces[removalFaces[i]];
+            let face = simplex_faces[removalFaces[i]];
             let edgeAB = {a: face.a, b: face.b};
             let edgeAC = {a: face.a, b: face.c};
             let edgeBC = {a: face.b, b: face.c};
     
-            let k = this.#edgeInEdges(edges, edgeAB);
+            let k = this.#edge_in_edges(edges, edgeAB);
             if(k != -1)
             {
                 edges.splice(k, 1);
@@ -85,7 +83,7 @@ export class EPA
                 edges.push(edgeAB);
             }
     
-            k = this.#edgeInEdges(edges, edgeAC);
+            k = this.#edge_in_edges(edges, edgeAC);
             if(k != -1)
             {
                 edges.splice(k, 1);
@@ -95,7 +93,7 @@ export class EPA
                 edges.push(edgeAC);
             }
     
-            k = this.#edgeInEdges(edges, edgeBC);
+            k = this.#edge_in_edges(edges, edgeBC);
             if(k != -1)
             {
                 edges.splice(k, 1);
@@ -109,17 +107,17 @@ export class EPA
         // Remove the faces from the polytope.
         for (let i = removalFaces.length - 1; i >= 0; --i) 
         {
-            simplexFaces.splice(removalFaces[i], 1);
+            simplex_faces.splice(removalFaces[i], 1);
         }
     
         // Form new faces with the edges and new point.
         for(let i = 0; i < edges.length; ++i) 
         {
-            simplexFaces.push({a: edges[i].a, b: edges[i].b, c: simplex.get_points().length - 1});
+            simplex_faces.push({a: edges[i].a, b: edges[i].b, c: simplex.get_points().length - 1});
         }
     }
     
-    #edgeInEdges(edges, edge) 
+    #edge_in_edges(edges, edge) 
     {
         for(let i = 0; i < edges.length; ++i) 
         {
@@ -132,12 +130,12 @@ export class EPA
         return -1;
     }
     
-    #findClosestFace(simplex, simplexFaces) 
+    #find_closest_face(simplex, simplex_faces) 
     {
         let closest = {dist: Infinity};
-        for (let i = 0; i < simplexFaces.length; ++i) 
+        for (let i = 0; i < simplex_faces.length; ++i) 
         {
-            let face = simplexFaces[i];
+            let face = simplex_faces[i];
             let A = simplex.get_points()[face.a].to3();
             let B = simplex.get_points()[face.b].to3();
             let C = simplex.get_points()[face.c].to3();

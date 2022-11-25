@@ -8,35 +8,35 @@ const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture
 // https://apps.dtic.mil/sti/pdfs/ADA622925.pdf
 export class GJKCollision
 {
-    is_colliding(rbi, rbj)
+    is_colliding(goi, goj)
     {
-        let nIters = 0;
+        let n_iters = 0;
         let done = false;
-        let areColliding = false;
+        let are_colliding = false;
         let dir = vec4(1, 0, 0, 0);
         let simplex = new Simplex();
-        while (!done && nIters < 20)
+        while (!done && n_iters < 20)
         {
-            nIters += 1;
-            let P = support(rbi, dir).minus(support(rbj, dir.times(-1)));
+            n_iters += 1;
+            let P = support(goi, dir).minus(support(goj, dir.times(-1)));
             P[3] = 1;
             simplex.add(P);
             if (simplex.num_points() > 1 && P.dot(dir) < 0)
             {
-                areColliding = false;
+                are_colliding = false;
                 done = true;
             }
             simplex.process();
             if (simplex.contains_origin())
             {
-                areColliding = true;
+                are_colliding = true;
                 done = true;
             }
             dir = simplex.get_next_direction();
         }
 
         return {
-            areColliding: areColliding,
+            are_colliding: are_colliding,
             simplex: simplex
         };
     }
