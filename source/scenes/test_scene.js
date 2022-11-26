@@ -19,8 +19,10 @@ export class TestScene extends PhysicsSim
             plastic: new Material(new defs.Phong_Shader(),
                 {ambient: .4, diffusivity: .6, color: color(1,0,0,1)}),
         };
-        this.test_scene = 4; // Switch from 1 to 4 for different test cases.
+        this.test_scene = 5; // Switch from 1 to 4 for different test cases.
         this.flag = false;
+        this.bullet_idx = 0;
+        this.ground;
     }
 
     initialize(context, program_state)
@@ -172,6 +174,35 @@ export class TestScene extends PhysicsSim
             go14.add_collider_component(collider_types.AABB, go14.scale);
             this.add_rigidbody(go14);
         }
+        else if (this.test_scene == 5)
+        {
+            // Test Scene 5 - A stack of bricks to shoot bullets at.
+            this.ground = new GameObject("Ground", this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(40, 1, 20));
+            this.ground.add_rigidbody_component(true);
+            this.ground.add_collider_component(collider_types.AABB, this.ground.scale);
+            this.add_rigidbody(this.ground);
+
+            let go1 = new GameObject("Cube1", this.shapes.cube, this.materials.plastic.override({ color: color(1, 0, 0, 1) }), vec4(0, 12.5, 11, 1), vec3(0, 0, 0), vec3(1, 2, 1));
+            go1.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            go1.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            go1.add_collider_component(collider_types.AABB, go1.scale);
+            this.add_rigidbody(go1);
+            let go2 = new GameObject("Cube2", this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 1, 1) }), vec4(0, 2, 10, 1), vec3(0, 0, 0), vec3(2, 1, 3));
+            go2.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            go2.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            go2.add_collider_component(collider_types.AABB, go2.scale);
+            this.add_rigidbody(go2);
+            let go3 = new GameObject("Cube3", this.shapes.cube, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), vec4(-0.3, 6, 10, 1), vec3(0, 0, 0), vec3(3, 2, 1));
+            go3.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            go3.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            go3.add_collider_component(collider_types.AABB, go3.scale);
+            this.add_rigidbody(go3);
+            let go4 = new GameObject("Cube4", this.shapes.cube, this.materials.plastic.override({ color: color(0, 0, 1, 1) }), vec4(0, -5, 10.1, 1), vec3(0, 0, 0), vec3(0.4, 1.6, 1.4));
+            go4.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            go4.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            go4.add_collider_component(collider_types.AABB, go4.scale);
+            this.add_rigidbody(go4);
+        }
     }
 
     update(context, program_state)
@@ -186,6 +217,31 @@ export class TestScene extends PhysicsSim
             //this.remove_collider("Wall4");
             this.flag = true;
         }
+        else if (this.test_scene == 5)
+        {
+            // For example, spawn in boxes to shoot at every-so-often.
+        }
+    }
+
+    shoot(controls)
+    {
+        if (controls.fire)
+        {
+            const name = "Bullet" + this.bullet_idx.toString();
+            const gravity = -0.5;
+            const speed = 10;
+            const radius = 1;
+
+            // Spawn new "bullet."
+            let go = new GameObject(name, this.shapes.sphere, this.materials.plastic.override({ color: color(1, 1, 1, 1) }), controls.gun_position, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go.add_rigidbody_component();
+            go.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go);
+
+            this.bullet_idx += 1;
+        }
     }
 
     display(context, program_state)
@@ -195,6 +251,9 @@ export class TestScene extends PhysicsSim
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
             program_state.set_camera(Mat4.translation(-2, -7, -65));
         }
+
+        this.shoot(context.scratchpad.controls);
+
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 1, 200);
         program_state.lights = [new Light(vec4(0, 5, 5, 1), color(1, 1, 1, 1), 1000)];
 

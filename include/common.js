@@ -815,14 +815,16 @@ const Movement_Controls = defs.Movement_Controls =
         constructor() {
             super();
             const data_members = {
-                roll: 0, look_around_locked: true,
-                thrust: vec3(0, 0, 0), pos: vec3(0, 0, 0), z_axis: vec3(0, 0, 0),
-                radians_per_frame: 1 / 200, meters_per_frame: 20, speed_multiplier: 1
+                thrust: vec3(1, 0, 0), pos: vec3(0, 0, 0), z_axis: vec3(0, 0, 0), speed: 0.05, fire_interval: 30, fire_counter: 0,
+                h_sensitivity: 0.1, v_sensitivity: 0.12, v_offset: -1, d_offset: -2
             };
             Object.assign(this, data_members);
 
             this.mouse_enabled_canvases = new Set();
             this.will_take_over_graphics_state = true;
+            this.fire = false;
+            this.gun_position = vec3(0,0,0,0);
+            this.gun_aim = vec4(0,0,0,0);
         }
 
         set_recipient(matrix_closure, inverse_closure) {
@@ -851,6 +853,13 @@ const Movement_Controls = defs.Movement_Controls =
                 this.mouse.anchor = undefined;
             });
             canvas.addEventListener("mousedown", e => {
+                // fire with predefined frequency
+                if(this.fire_counter >= this.fire_interval)
+                {
+                    this.fire_counter = 0;
+                    this.fire = true;
+                }
+
                 e.preventDefault();
                 this.mouse.anchor = mouse_position(e);
             });
@@ -877,112 +886,55 @@ const Movement_Controls = defs.Movement_Controls =
             this.live_string(box => box.textContent = "- Facing: " + ((this.z_axis[0] > 0 ? "West " : "East ")
                 + (this.z_axis[1] > 0 ? "Down " : "Up ") + (this.z_axis[2] > 0 ? "North" : "South")));
             this.new_line();
-            this.new_line();
-
-            this.key_triggered_button("Up", [" "], () => this.thrust[1] = -1, undefined, () => this.thrust[1] = 0);
-            this.key_triggered_button("Forward", ["w"], () => this.thrust[2] = 1, undefined, () => this.thrust[2] = 0);
-            this.new_line();
-            this.key_triggered_button("Left", ["a"], () => this.thrust[0] = 1, undefined, () => this.thrust[0] = 0);
-            this.key_triggered_button("Back", ["s"], () => this.thrust[2] = -1, undefined, () => this.thrust[2] = 0);
-            this.key_triggered_button("Right", ["d"], () => this.thrust[0] = -1, undefined, () => this.thrust[0] = 0);
-            this.new_line();
-            this.key_triggered_button("Down", ["z"], () => this.thrust[1] = 1, undefined, () => this.thrust[1] = 0);
 
             const speed_controls = this.control_panel.appendChild(document.createElement("span"));
             speed_controls.style.margin = "30px";
             this.key_triggered_button("-", ["o"], () =>
-                this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
+                this.speed /= 1.2, undefined, undefined, undefined, speed_controls);
             this.live_string(box => {
-                box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
+                box.textContent = "Speed: " + this.speed.toFixed(2)
             }, speed_controls);
             this.key_triggered_button("+", ["p"], () =>
-                this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
-            this.new_line();
-            this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
-            this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
-            this.new_line();
-            this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
-            this.new_line();
-            this.key_triggered_button("Go to world origin", ["r"], () => {
-                this.matrix().set_identity(4, 4);
-                this.inverse().set_identity(4, 4)
-            }, "#8B8885");
-            this.new_line();
-
-            this.key_triggered_button("Look at origin from front", ["1"], () => {
-                this.inverse().set(Mat4.look_at(vec3(0, 0, 10), vec3(0, 0, 0), vec3(0, 1, 0)));
-                this.matrix().set(Mat4.inverse(this.inverse()));
-            }, "#8B8885");
-            this.new_line();
-            this.key_triggered_button("from right", ["2"], () => {
-                this.inverse().set(Mat4.look_at(vec3(10, 0, 0), vec3(0, 0, 0), vec3(0, 1, 0)));
-                this.matrix().set(Mat4.inverse(this.inverse()));
-            }, "#8B8885");
-            this.key_triggered_button("from rear", ["3"], () => {
-                this.inverse().set(Mat4.look_at(vec3(0, 0, -10), vec3(0, 0, 0), vec3(0, 1, 0)));
-                this.matrix().set(Mat4.inverse(this.inverse()));
-            }, "#8B8885");
-            this.key_triggered_button("from left", ["4"], () => {
-                this.inverse().set(Mat4.look_at(vec3(-10, 0, 0), vec3(0, 0, 0), vec3(0, 1, 0)));
-                this.matrix().set(Mat4.inverse(this.inverse()));
-            }, "#8B8885");
-            this.new_line();
-            this.key_triggered_button("Attach to global camera", ["Shift", "R"],
-                () => {
-                    this.will_take_over_graphics_state = true
-                }, "#8B8885");
+                this.speed *= 1.2, undefined, undefined, undefined, speed_controls);
             this.new_line();
         }
 
-        first_person_flyaround(radians_per_frame, meters_per_frame, leeway = 70) {
-            // (Internal helper function)
-            // Compare mouse's location to all four corners of a dead box:
-            const offsets_from_dead_box = {
-                plus: [this.mouse.from_center[0] + leeway, this.mouse.from_center[1] + leeway],
-                minus: [this.mouse.from_center[0] - leeway, this.mouse.from_center[1] - leeway]
-            };
-            // Apply a camera rotation movement, but only when the mouse is
-            // past a minimum distance (leeway) from the canvas's center:
-            if (!this.look_around_locked)
-                // If steering, steer according to "mouse_from_center" vector, but don't
-                // start increasing until outside a leeway window from the center.
-                for (let i = 0; i < 2; i++) {                                     // The &&'s in the next line might zero the vectors out:
-                    let o = offsets_from_dead_box,
-                        velocity = ((o.minus[i] > 0 && o.minus[i]) || (o.plus[i] < 0 && o.plus[i])) * radians_per_frame;
-                    // On X step, rotate around Y axis, and vice versa.
-                    this.matrix().post_multiply(Mat4.rotation(-velocity, i, 1 - i, 0));
-                    this.inverse().pre_multiply(Mat4.rotation(+velocity, i, 1 - i, 0));
-                }
-            this.matrix().post_multiply(Mat4.rotation(-.1 * this.roll, 0, 0, 1));
-            this.inverse().pre_multiply(Mat4.rotation(+.1 * this.roll, 0, 0, 1));
-            // Now apply translation movement of the camera, in the newest local coordinate frame.
-            this.matrix().post_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
-            this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
+        #_move()
+        {
+            let m = this.matrix();
+            m.post_multiply(Mat4.translation(...this.thrust.times(this.speed)));
+
+            // cache and provide gun position vector, for downstream convenience
+            this.gun_position = vec3(m[0][3], m[1][3] + this.v_offset, m[2][3] + this.d_offset);
         }
 
-        third_person_arcball(radians_per_frame) {
-            // (Internal helper function)
-            // Spin the scene around a point on an axis determined by user mouse drag:
-            const dragging_vector = this.mouse.from_center.minus(this.mouse.anchor);
-            if (dragging_vector.norm() <= 0)
-                return;
-            this.matrix().post_multiply(Mat4.translation(0, 0, -25));
-            this.inverse().pre_multiply(Mat4.translation(0, 0, +25));
+        #_aim()
+        {
 
-            const rotation = Mat4.rotation(radians_per_frame * dragging_vector.norm(),
-                dragging_vector[1], dragging_vector[0], 0);
-            this.matrix().post_multiply(rotation);
-            this.inverse().pre_multiply(rotation);
+            let mtx = this.matrix();
+            let eye = vec3(mtx[0][3], mtx[1][3], mtx[2][3]);
+            let x = this.mouse.from_center[0] * this.h_sensitivity;
+            let y = this.mouse.from_center[1] * this.v_sensitivity;
+            let at = vec3(eye[0] + x, eye[1] + y, eye[2] - 100);
+            let up = vec3(0, 1, 0);
+            let aim = Mat4.look_at(eye, at, up);
+            this.inverse().set(aim);
 
-            this.matrix().post_multiply(Mat4.translation(0, 0, +25));
-            this.inverse().pre_multiply(Mat4.translation(0, 0, -25));
+            // provide current gun aim vector, for downstream convenience
+            let camera_forward = vec4(0, 0, -1, 0);
+            this.gun_aim = Mat4.inverse(aim).times(camera_forward);
         }
 
-        display(context, graphics_state, dt = graphics_state.animation_delta_time / 1000) {
+        #_fire()
+        {
+            // fire with predefined frequency
+            if(this.fire_counter >= 0 && this.fire_counter < this.fire_interval)
+                this.fire = false;
+            this.fire_counter += 1;
+        }
+
+        display(context, graphics_state) {
             // The whole process of acting upon controls begins here.
-            const m = this.speed_multiplier * this.meters_per_frame,
-                r = this.speed_multiplier * this.radians_per_frame;
-
             if (this.will_take_over_graphics_state) {
                 this.reset(graphics_state);
                 this.will_take_over_graphics_state = false;
@@ -992,14 +944,10 @@ const Movement_Controls = defs.Movement_Controls =
                 this.add_mouse_controls(context.canvas);
                 this.mouse_enabled_canvases.add(context.canvas)
             }
-            // Move in first-person.  Scale the normal camera aiming speed by dt for smoothness:
-            this.first_person_flyaround(dt * r, dt * m);
-            // Also apply third-person "arcball" camera mode if a mouse drag is occurring:
-            if (this.mouse.anchor)
-                this.third_person_arcball(dt * r);
-            // Log some values:
-            this.pos = this.inverse().times(vec4(0, 0, 0, 1));
-            this.z_axis = this.inverse().times(vec4(0, 0, 1, 0));
+
+            this.#_move();
+            this.#_aim();
+            this.#_fire();
         }
     }
 
