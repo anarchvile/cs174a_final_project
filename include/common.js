@@ -816,14 +816,18 @@ const Movement_Controls = defs.Movement_Controls =
             super();
             const data_members = {
                 thrust: vec3(1, 0, 0), pos: vec3(0, 0, 0), z_axis: vec3(0, 0, 0), speed: 0.05, fire_interval: 30, fire_counter: 0,
-                h_sensitivity: 0.1, v_sensitivity: 0.12, v_offset: -1, d_offset: -2
+                h_sensitivity: 0.1, v_sensitivity: 0.12, v_offset: -1, d_offset: -2, special_fire_counter: 0, special_fire_interval: 30
             };
             Object.assign(this, data_members);
 
             this.mouse_enabled_canvases = new Set();
             this.will_take_over_graphics_state = true;
             this.fire = false;
+            this.alt_fire = false;
             this.gun_position = vec3(0,0,0,0);
+            this.alt_gun_position1 = vec3(0,0,0,0);
+            this.alt_gun_position2 = vec3(0,0,0,0);
+            this.alt_gun_position3 = vec3(0,0,0,0);
             this.gun_aim = vec4(0,0,0,0);
         }
 
@@ -897,7 +901,15 @@ const Movement_Controls = defs.Movement_Controls =
             this.key_triggered_button("+", ["p"], () =>
                 this.speed *= 1.2, undefined, undefined, undefined, speed_controls);
             this.new_line();
+            this.key_triggered_button("shotgun", ["s"], () => {
+                if(this.special_fire_counter >= this.special_fire_interval)
+                {
+                    this.special_fire_counter = 0;
+                    this.alt_fire = true;
+                }
+            });
         }
+
 
         #_move()
         {
@@ -906,6 +918,10 @@ const Movement_Controls = defs.Movement_Controls =
 
             // cache and provide gun position vector, for downstream convenience
             this.gun_position = vec3(m[0][3], m[1][3] + this.v_offset, m[2][3] + this.d_offset);
+
+            this.alt_gun_position1 = vec3(m[0][3], m[1][3] + 2, m[2][3] + this.d_offset);
+            this.alt_gun_position2 = vec3(m[0][3] + (-2), m[1][3] + (-2), m[2][3] + this.d_offset);
+            this.alt_gun_position3 = vec3(m[0][3] + 2, m[1][3] + (-2), m[2][3] + this.d_offset);
         }
 
         #_aim()
@@ -933,6 +949,14 @@ const Movement_Controls = defs.Movement_Controls =
             this.fire_counter += 1;
         }
 
+        #_alt_fire()
+        {
+            // fire with predefined frequency
+            if(this.special_fire_counter >= 0 && this.special_fire_counter < this.special_fire_interval)
+                this.alt_fire = false;
+            this.special_fire_counter += 1;
+        }
+
         display(context, graphics_state) {
             // The whole process of acting upon controls begins here.
             if (this.will_take_over_graphics_state) {
@@ -948,6 +972,7 @@ const Movement_Controls = defs.Movement_Controls =
             this.#_move();
             this.#_aim();
             this.#_fire();
+            this.#_alt_fire();
         }
     }
 

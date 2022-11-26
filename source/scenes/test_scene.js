@@ -242,6 +242,39 @@ export class TestScene extends PhysicsSim
 
             this.bullet_idx += 1;
         }
+        if (controls.alt_fire)
+        {
+            const name1 = "Bullet1" + this.bullet_idx.toString();
+            const name2 = "Bullet2" + this.bullet_idx.toString();
+            const name3 = "Bullet3" + this.bullet_idx.toString();
+            const gravity = -0.5;
+            const speed = 10;
+            const radius = 1;
+
+            // Spawn new "bullet."
+            let go1 = new GameObject(name1, this.shapes.sphere, this.materials.plastic.override({ color: color(1, 0, 0, 1) }), controls.alt_gun_position1, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go1.add_rigidbody_component();
+            go1.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go1.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go1.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go1);
+
+            let go2 = new GameObject(name2, this.shapes.sphere, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), controls.alt_gun_position2, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go2.add_rigidbody_component();
+            go2.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go2.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go2.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go2);
+
+            let go3 = new GameObject(name3, this.shapes.sphere, this.materials.plastic.override({ color: color(0, 0, 1, 1) }), controls.alt_gun_position3, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go3.add_rigidbody_component();
+            go3.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go3.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go3.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go3);
+
+            this.bullet_idx += 1;
+        }
     }
 
     display(context, program_state)
