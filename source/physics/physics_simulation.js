@@ -133,12 +133,9 @@ export class PhysicsSim extends Scene
             // O(n^2) algorithm. If we detect any overlap, create a contact constraint
             // object for those two objects. Note that the contact constraint can exist between
             // two rigidbodies, a rigidbody and a collider, and two colliders (need to account
-            // for these possibilities later on!). TODO: later split this into broad-phase and
-            // narrow-phase collision detection steps, check whether the GJK+EPA algorithms
-            // work on more complex objects, etc.
-            // Note that all rigidbodies must have colliders attached, but not all collider
-            // gameobjects need a rigidbody, hence why it's safe for us to just get each
-            // gameobject's collider component in this step.
+            // for these possibilities later on!). Note that all rigidbodies must have colliders 
+            // attached, but not all collider gameobjects need a rigidbody, hence why it's safe 
+            // for us to just get each gameobject's collider component in this step.
             for (let i = 0; i < this.#game_objects.size; ++i)
             {
                 let goi = this.#game_objects.get(Array.from(this.#game_objects.keys())[i]);
@@ -295,9 +292,7 @@ export class PhysicsSim extends Scene
                 }
             }
 
-            // TODO Step 3: Warm start for velocity constraint.
-
-            // Step 4: Solve velocity constraint.
+            // Step 3: Solve velocity constraint.
             for (let i = 0; i < 15; ++i)
             {
                 // Apply tangential velocity constrain (i.e. friction).
@@ -424,7 +419,7 @@ export class PhysicsSim extends Scene
                 }
             }
 
-            // Step 5: Clamp velocities of Rigidbodies so that they don't grow too large.
+            // Step 4: Clamp velocities of Rigidbodies so that they don't grow too large.
             for (const go of this.#game_objects.values())
             {
                 if (!go.has_rigidbody_component())
@@ -442,7 +437,7 @@ export class PhysicsSim extends Scene
                 }
             }
 
-            // Step 6: Integrate velocities of Rigidbodies to obtain new object positions.
+            // Step 5: Integrate velocities of Rigidbodies to obtain new object positions.
             for (let go of this.#game_objects.values())
             {
                 if (!go.has_rigidbody_component())
@@ -457,7 +452,7 @@ export class PhysicsSim extends Scene
                 }
             }
 
-            // Step 7: Apply position constraint to ensure that there is no object overlap.
+            // Step 6: Apply position constraint to ensure that there is no object overlap.
             for (let i = 0; i < 3; ++i)
             {
                 for (const [key, contact] of this.#contact_constraints)
@@ -469,16 +464,11 @@ export class PhysicsSim extends Scene
 
                     const separation = -Math.abs(contact.global_position_j.minus(contact.global_position_i).dot(contact.normal.times(-1)));
 
-                    // Magic number by 0.01 seems to be a good amount
-                    const steering_constant = 0.001;
-                    // Limit the amount of correction at once for stability
-                    const max_correction = -10;
-                    // Be tolerant of 1 pixel of overlap
-                    const slop = 1;
+                    const steering_constant = 0.001; // Determined via trial-and-error.
+                    const max_correction = -10; // Limit corrective force for position constraint resolution.
+                    const slop = 1; // 1 pixel worth of penetration tolerance.
 
-                    // Clamp to avoid over-correction
-                    // Remember that we are shooting for 0 overlap in the end
-                    //const steeringForce = Math.clamp(steeringConstant * (separation + slop), maxCorrection, 0);
+                    // Clamp to avoid over-correction.
                     const steering_force = Math.max(max_correction, Math.min(steering_constant * (separation + slop), 0));
                     let effective_mass = 1;
                     if (rbi != null && rbj != null)
@@ -495,28 +485,20 @@ export class PhysicsSim extends Scene
                     }
                     var impulse = contact.normal.times(-steering_force / effective_mass);
                     
-                    // Update positions of rbi & rbj directly by "pseudo-impulse", we still use the same impulse formula from above.
-                    // Note that we also update the rigid body's corresponding gameobject parent and collider component position.
+                    // Update positions of rbi & rbj directly via "pseudo-impulse" (same impulse formula from above).
                     if (rbi != null && !rbi.is_kinematic) 
                     {
                         goi.position = goi.position.minus(impulse.times(1 / rbi.mass));
-                        //bodyA.xf.rotation -= point.aToContact.cross(impulse) * bodyA.inverseInertia;
                     }
                 
                     if (rbj != null && !rbj.is_kinematic) 
                     {
                         goj.position = goj.position.plus(impulse.times(1 / rbj.mass));
-                        //bodyB.xf.rotation += point.bToContact.cross(impulse) * bodyB.inverseInertia;
                     }
                 }
             }
 
-            // TODO: Find a way to both decrease slop and reduce resulting jittering behavior,
-            // add rotational dynamics, cache previous contact contraints to use for "warm
-            // starts," see if we can make the restitution parameter less sensitive overall, 
-            // add friction.
-
-            // Clear all constraints since they've been solved-for.
+            // Clear all constraints since they've been solved for.
             this.#contact_constraints.clear();
 
             // De-couple our simulation time from our frame rate.
