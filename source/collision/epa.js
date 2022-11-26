@@ -1,6 +1,4 @@
-import {defs, tiny} from "../../include/common.js";
-import { Simplex } from "../geometry/simplex.js";
-import { support } from "./support.js";
+import {support} from "./support.js";
 
 // https://stackoverflow.com/questions/48979868/implementing-the-expanding-polytope-algorithm-in-3d-space
 export class EPA

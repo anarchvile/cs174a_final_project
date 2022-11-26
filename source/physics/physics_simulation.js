@@ -1,10 +1,9 @@
-import {defs, tiny} from "../../include/common.js";
-import {Contact} from "./contact.js"
-import { GJKCollision } from "./gjk_collision.js";
-import { EPA } from "./epa.js";
-
-// Pull these names into this module's scope for convenience:
-const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix} = tiny;
+import {tiny} from "../../include/common.js";
+import {Contact} from "../collision/contact.js"
+import {GJKCollision} from "../collision/gjk_collision.js";
+import {EPA} from "../collision/epa.js";
+import { collider_types } from "../collision/collider.js";
+const {vec3, vec4, Mat4, Scene} = tiny;
 
 // The PhysicsSim class handles all rigidbody physics simulation behavior, including
 // applying forces, computing new positions/velocities as a result of applied forces,
@@ -49,14 +48,16 @@ export class PhysicsSim extends Scene
         this.#epa = new EPA();
     }
 
+    // Abstract method that gets implemented in the derived scene.
+    // Gets called once at start time.
     initialize(context, program_state) 
     {
-        throw "IMPLEMENT!";
+        throw "IMPLEMENT INITIALIZE!";
     }
 
     fixed_update(frame_time)
     {
-        // Add/remove cached game objects.
+        // Add/remove cached game objects, and reset the caches.
         for (let go of this.#cached_rigidbodies_to_add)
         {
             this.#game_objects.set(go.name, go);
@@ -73,6 +74,11 @@ export class PhysicsSim extends Scene
         {
             this.#game_objects.delete(go.name);
         }
+
+        this.#cached_rigidbodies_to_add.length = 0;
+        this.#cached_colliders_to_remove.length = 0;
+        this.#cached_colliders_to_add.length = 0;
+        this.#cached_colliders_to_remove.length = 0;
 
         frame_time = this.#time_scale * frame_time;
         
@@ -122,36 +128,6 @@ export class PhysicsSim extends Scene
                 }
             }
 
-            /*for (var i = 0; i < this.forces.length; ++i)
-            {
-                // Remove forces whose duration has expired.
-                if (!this.forces[i].indefinite && this.forces[i].duration <= 0)
-                {
-                    this.forces.splice(i--, 1);
-                    continue;
-                }
-                // Each force keeps track of the rigid bodies it acts on.
-                // Apply said force to each of these rigid bodies in order
-                // to determine a new tentative velocity prior to contact
-                // resolution.
-                for (let body_name of this.forces[i].affected_bodies)
-                {
-                    var rb = this.rigidbodies.get(body_name);
-                    // Don't apply any forces to kinematic objects.
-                    if (rb.is_kinematic)
-                    {
-                        continue;
-                    }
-                    var acceleration = this.forces[i].force_vector.times(1 / rb.mass);
-                    rb.velocity = rb.velocity.plus(acceleration.times(this.dt));
-                }
-
-                if (this.forces[i].duration > 0)
-                {
-                    this.forces[i].duration -= this.dt;
-                }
-            }*/
-
             // Step 2: Collision detection - for now we just use spheres and boxes as the only
             // primitive and naively check for overlapping regions via an
             // O(n^2) algorithm. If we detect any overlap, create a contact constraint
@@ -166,17 +142,15 @@ export class PhysicsSim extends Scene
             for (let i = 0; i < this.#game_objects.size; ++i)
             {
                 let goi = this.#game_objects.get(Array.from(this.#game_objects.keys())[i]);
-                let rbi = goi.get_rigidbody_component();
                 let ci = goi.get_collider_component();
                 for (let j = i + 1; j < this.#game_objects.size; ++j)
                 {
                     let goj = this.#game_objects.get(Array.from(this.#game_objects.keys())[j]);
-                    let rbj = goj.get_rigidbody_component();
                     let cj = goj.get_collider_component();
 
                     // AABB-AABB collision detection. Uses more specialized/specific algorithm
                     // for faster/more precise results.
-                    if (ci.type == "AABB" && cj.type == "AABB")
+                    if (ci.type == collider_types.AABB && cj.type == collider_types.AABB)
                     {
                         // Check if the two boxes overlap.
                         if 
@@ -326,72 +300,126 @@ export class PhysicsSim extends Scene
             // Step 4: Solve velocity constraint.
             for (let i = 0; i < 15; ++i)
             {
+                // Apply tangential velocity constrain (i.e. friction).
                 for (const [key, contact] of this.#contact_constraints)
                 {
                     let goi = this.#game_objects.get(key[0]);
                     let goj = this.#game_objects.get(key[1]);
                     let rbi = goi.get_rigidbody_component();
                     let rbj = goj.get_rigidbody_component();
-                    let ci = goi.get_collider_component();
-                    let cj = goj.get_collider_component();
-
-                    //const restitution = bodyA.restitution * bodyB.restitution;
-                    let restitution = 0;
-                    if (ci.type == "AABB" && cj.type == "AABB")
-                    {
-                        restitution = 3;
-                    }
-                    else
-                    {
-                        restitution = 2.99;
-                    }
 
                     // Need to recalculate relative velocity because the previous step could have changed
                     // the object velocity. Make sure to take into account the fact that some of the
                     // game objects we iterate over are colliders only!
-                    //const relative_velocity = point.getRelativeVelocity();
+                    let friction = 0;
                     let relative_velocity = vec4(0, 0, 0, 0);
-                    //const effective_mass = bodyA.inverseMass + bodyB.inverseMass + 
-                    //                        bodyA.inverseInertia * aToContactNormal * aToContactNormal +
-                    //                        bodyB.inverseInertia * bToContactNormal * bToContactNormal;
                     let effective_mass = 1;
                     if (rbi != null && rbj != null)
                     {
+                        friction = (rbi.friction + rbj.friction) / 2;
                         relative_velocity = rbj.velocity.minus(rbi.velocity);
                         effective_mass = 1 / rbi.mass + 1 / rbj.mass;
                     }
                     else if (rbi != null && rbj == null)
                     {
+                        friction = rbi.friction;
                         relative_velocity = rbi.velocity.times(-1);
                         effective_mass = 1 / rbi.mass + 1;
                     }
                     else if (rbi == null && rbj != null)
                     {
+                        friction = rbj.friction;
                         relative_velocity = rbj.velocity;
                         effective_mass = 1 / rbj.mass + 1;
                     }
 
-                    // Compute impulse in normal direction
-                    const normal_velocity_magnitude = relative_velocity.dot(contact.normal);
-                    let impulse_magnitude = (-(1 + restitution) * normal_velocity_magnitude) / effective_mass;
+                    // Tangent impulse direction is the normalized projection of the relative velocity
+                    // onto the tangential collision plane.
+                    let tangent_impulse_dir = relative_velocity.minus(contact.normal.times(relative_velocity.dot(contact.normal)));
+                    if (tangent_impulse_dir.norm() != 0)
+                    {
+                        tangent_impulse_dir = tangent_impulse_dir.normalized();
+                    }
+                    // Negate velocity components that lie in the plane normal
+                    // to the collision (i.e. in the tangential plane) to simulate friction.
+                    const tangent_velocity_magnitude = -relative_velocity.dot(tangent_impulse_dir);
+                    let tangent_impulse_magnitude = tangent_velocity_magnitude / effective_mass;
 
-                    // Clamping based in Erin Catto's GDC 2014 talk
-                    // Accumulated impulse stored in the contact is always positive (dV > 0)
-                    // But deltas can be negative
-                    const new_impulse = Math.max(contact.normal_impulse_sum + impulse_magnitude, 0);
-                    impulse_magnitude = new_impulse - contact.normal_impulse_sum;
-                    contact.normal_impulse_sum = new_impulse;
-                    const impulse_vector = contact.normal.times(impulse_magnitude);
+                    // Clamp so that the accumulated friction impulse in the
+                    // contact constraint is always between -max_friction and 
+                    // max_friction.
+                    const max_friction = friction * contact.normal_impulse_magnitude_sum;
+                    const new_tangent_impulse_magnitude = Math.min(max_friction, Math.max(-max_friction, contact.tangent_impulse_magnitude_sum + tangent_impulse_magnitude));
+                    tangent_impulse_magnitude = new_tangent_impulse_magnitude - contact.tangent_impulse_magnitude_sum;
+                    contact.tangent_impulse_magnitude_sum = new_tangent_impulse_magnitude;
+                    const tangent_impulse_vector = tangent_impulse_dir.times(tangent_impulse_magnitude);
+
+                    // Only apply contact impulse to non-kinematic rigidbodies.
+                    if (rbi != null && !rbi.is_kinematic)
+                    {
+                        rbi.velocity = rbi.velocity.minus(tangent_impulse_vector.times(1 / rbi.mass));
+                    }
+                    if (rbj != null && !rbj.is_kinematic)
+                    {
+                        rbj.velocity = rbj.velocity.plus(tangent_impulse_vector.times(1 / rbj.mass));
+                    }
+                }
+
+                // Apply normal velocity constraint (i.e. reaction force that prevents
+                // objects from phasing through one another).
+                for (const [key, contact] of this.#contact_constraints)
+                {
+                    let goi = this.#game_objects.get(key[0]);
+                    let goj = this.#game_objects.get(key[1]);
+                    let rbi = goi.get_rigidbody_component();
+                    let rbj = goj.get_rigidbody_component();
+
+                    // Need to recalculate relative velocity because the previous step could have changed
+                    // the object velocity. Make sure to take into account the fact that some of the
+                    // game objects we iterate over are colliders only!
+                    let restitution = 0;
+                    let relative_velocity = vec4(0, 0, 0, 0);
+                    let effective_mass = 1;
+                    if (rbi != null && rbj != null)
+                    {
+                        restitution = rbi.restitution * rbj.restitution;
+                        relative_velocity = rbj.velocity.minus(rbi.velocity);
+                        effective_mass = 1 / rbi.mass + 1 / rbj.mass;
+                    }
+                    else if (rbi != null && rbj == null)
+                    {
+                        restitution = rbi.restitution ** 2;
+                        relative_velocity = rbi.velocity.times(-1);
+                        effective_mass = 1 / rbi.mass + 1;
+                    }
+                    else if (rbi == null && rbj != null)
+                    {
+                        restitution = rbj.restitution ** 2;
+                        relative_velocity = rbj.velocity;
+                        effective_mass = 1 / rbj.mass + 1;
+                    }
+
+                    // Compute impulse in normal direction.
+                    const normal_velocity_magnitude = relative_velocity.dot(contact.normal);
+                    let normal_impulse_magnitude = (-(1 + restitution) * normal_velocity_magnitude) / effective_mass;
+
+                    // Clamp so that accumulated normal impulse stored in 
+                    // the contact is always positive (otherwise collisions
+                    // could mistakenly drive objects through one another).
+                    const new_normal_impulse_magnitude = Math.max(contact.normal_impulse_magnitude_sum + normal_impulse_magnitude, 0);
+                    normal_impulse_magnitude = new_normal_impulse_magnitude - contact.normal_impulse_magnitude_sum;
+                    contact.normal_impulse_magnitude_sum = new_normal_impulse_magnitude;
+                    const normal_impulse_vector = contact.normal.times(normal_impulse_magnitude);
 
                     // By convention the normal points away from rbi, so negate.
                     // Only apply contact impulse to non-kinematic rigidbodies.
                     if (rbi != null && !rbi.is_kinematic)
                     {
-                        rbi.velocity = rbi.velocity.minus(impulse_vector.times(1 / rbi.mass));
+                        rbi.velocity = rbi.velocity.minus(normal_impulse_vector.times(1 / rbi.mass));
                     }
                     if (rbj != null && !rbj.is_kinematic)
                     {
-                        rbj.velocity = rbj.velocity.plus(impulse_vector.times(1 / rbj.mass));
+                        rbj.velocity = rbj.velocity.plus(normal_impulse_vector.times(1 / rbj.mass));
                     }
                 }
             }
@@ -490,16 +518,21 @@ export class PhysicsSim extends Scene
 
             // Clear all constraints since they've been solved-for.
             this.#contact_constraints.clear();
-            // TODO: Maybe expose another method for applying forces here
-            // that gets implemented in the derived scenes (maybe for handling
-            // user input that affects objects, adding timed events that apply
-            // forces to some objects, etc.).
 
             // De-couple our simulation time from our frame rate.
             this.#t += Math.sign(frame_time) * this.#dt;
             this.#time_accumulator -= Math.sign(frame_time) * this.#dt;
             this.#steps_taken++;
         }
+    }
+
+    // Abstract method that gets implemented in the derived scene. Gets
+    // called once per frame and allows the developer to update non-physics
+    // aspects of the scene (e.g. adding/deleting objects at runtime, 
+    // triggering specific events, etc.).
+    update(context, program_state) 
+    {
+        throw "IMPLEMENT UPDATE!";
     }
 
     // TODO: Maybe make this abstract function, and/or provide some base
@@ -545,11 +578,22 @@ export class PhysicsSim extends Scene
     {
         if (this.#game_objects.has(name))
         {
-            this.#cached_rigidbodies_to_remove.push(name);
+            let go = this.#game_objects.get(name);
+            if (go.has_rigidbody_component() && go.has_collider_component())
+            {
+                this.#cached_rigidbodies_to_remove.push(this.#game_objects.get(name));
+            }
+            else
+            {
+                const s = "WARNING: Attempt to remove GameObject " + "\"" + name + "\"" +
+                          "from the PhysicsSim object as a RigidBody failed; GameObject is " + 
+                          "missing a Rigidbody and/or Collider component."
+                console.log(s);
+            }
         }
         else
         {
-            console.log("WARNING: No GameObject with name " + "\"" + name + "\" exists in the PhysicsSim object.");
+            console.log("WARNING: No GameObject " + "\"" + name + "\" exists in the PhysicsSim object.");
         }
     }
 
@@ -569,8 +613,8 @@ export class PhysicsSim extends Scene
         {
             const s = "WARNING: Cannot add GameObject " +
                       "\"" + game_object.name + "\"" + 
-                      "\" as a pure collider to the physics scene because "
-                      + "it has an attached RigidBody component. " +
+                      "\" as a pure collider to the physics scene because " +
+                      "it has an attached RigidBody component. " +
                       "Remove the Rigidbody component from this GameObject in order " +
                       "to add it as a Collider to the PhysicsSim object.";
             console.log(s);
@@ -582,7 +626,18 @@ export class PhysicsSim extends Scene
     {
         if (this.#game_objects.has(name))
         {
-            this.#cached_colliders_to_remove.push(name);
+            let go = this.#game_objects.get(name);
+            if (!go.has_rigidbody_component() && go.has_collider_component())
+            {
+                this.#cached_colliders_to_remove.push(this.#game_objects.get(name));
+            }
+            else
+            {
+                const s = "WARNING: Attempt to remove GameObject " + "\"" + name + "\"" +
+                          "from the PhysicsSim object as a Collider failed; GameObject is " + 
+                          "either missing a Collider component or also contains a Rigidbody component."
+                console.log(s);
+            }
         }
         else
         {
@@ -600,6 +655,7 @@ export class PhysicsSim extends Scene
         if (program_state.animate)
         {
             this.fixed_update(program_state.animation_delta_time);
+            this.update(context, program_state);
         }
 
         for (let go of this.#game_objects.values())

@@ -1,44 +1,25 @@
-import { SphereCollider } from "../physics/collider.js";
-import { AABBCollider } from "../physics/collider.js";
-import { RigidBody } from "../physics/rigidbody.js";
+import {tiny} from "../../include/common.js";
+import {collider_types, SphereCollider} from "../collision/collider.js";
+import {AABBCollider} from "../collision/collider.js";
+import {RigidBody} from "../physics/rigidbody.js";
+const {vec4} = tiny;
 
 export class GameObject
 {
     #rigidbody;
     #collider;
 
-    constructor(name, shape, vertices, material, position, orientation, scale)
+    // Constructor for GameObject.
+    constructor(name, shape, material, position, orientation, scale)
     {
-        this.name = name;
-        this.shape = shape;
-        this.vertices = [];
-        if (shape != null)
-        {
-            for (let i = 0; i < shape.arrays.position.length; ++i)
-            {
-                this.vertices.push(shape.arrays.position[i].to4(true));
-            }
-        }
-        else
-        {
-            for (let i = 0; i < vertices.length; ++i)
-            {
-                if (vertices[i].length == 3)
-                {
-                    this.vertices.push(vertices[i].to4(true));
-                }
-                else
-                {
-                    this.vertices.push(vertices[i]);
-                }
-            }
-        }
-        this.material = material;
-        this.position = position;
-        this.orientation = orientation;
-        this.scale = scale;
-        this.#rigidbody = null;
-        this.#collider = null;
+        this.name = name; // string.
+        this.shape = shape; // Shape object (e.g. cube, sphere, .OBJ file, etc.).
+        this.material = material; // Material object.
+        this.position = position; // vec4 where position[3] = 1.
+        this.orientation = orientation; // vec3.
+        this.scale = scale; // vec3.
+        this.#rigidbody = null; //RigidBody object.
+        this.#collider = null; // Collider object.
     }
 
     // Check to see if the GameObject has a Rigidbody component.
@@ -54,7 +35,7 @@ export class GameObject
     }
 
     // Add a new rigidbody component to the GameObject (can only have one).
-    add_rigidbody_component(mass, velocity, is_kinematic)
+    add_rigidbody_component(is_kinematic = false, mass = 1, velocity = vec4(0, 0, 0, 0), restitution = 1.69, friction = 0.3)
     {
         if (this.#rigidbody != null)
         {
@@ -63,7 +44,7 @@ export class GameObject
             //delete this.#rigidbody;
         }
 
-        this.#rigidbody = new RigidBody(mass, velocity, is_kinematic);
+        this.#rigidbody = new RigidBody(is_kinematic, mass, velocity, restitution, friction);
     }
 
     // Remove the rigidbody component on the GameObject (if it exists).
@@ -91,9 +72,10 @@ export class GameObject
     // Add a collider component to the GameObject (can only have one).
     add_collider_component(type, size)
     {
-        if (type != "AABB" && type != "Sphere")
+        if (type != collider_types.AABB && type != collider_types.Sphere)
         {
-            throw "ERROR: \"" + type + "\" is an invalid collider type; please choose \"AABB\" or \"Sphere\"";
+            throw "ERROR: \"" + type + "\" is an invalid collider type; please choose \"" + 
+                  collider_types.AABB + "\" or \"" + collider_types.Sphere + "\".";
         }
 
         if (this.#collider != null)
@@ -103,11 +85,11 @@ export class GameObject
             this.#collider = null;
         }
 
-        if (type == "AABB")
+        if (type == collider_types.AABB)
         {
             this.#collider = new AABBCollider(size[0], size[1], size[2]);
         }
-        else if (type == "Sphere")
+        else if (type == collider_types.Sphere)
         {
             this.#collider = new SphereCollider(size);
         }

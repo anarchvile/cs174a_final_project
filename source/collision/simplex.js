@@ -1,7 +1,5 @@
-import {defs, tiny} from "../../include/common.js";
-
-// Pull these names into this module's scope for convenience:
-const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
+import {tiny} from "../../include/common.js";
+const {vec3, vec4} = tiny;
 
 // https://apps.dtic.mil/sti/pdfs/ADA622925.pdf
 

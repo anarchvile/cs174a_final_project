@@ -1,12 +1,16 @@
-import { Force } from "./force.js";
+import {tiny} from "../../include/common.js";
+import {Force} from "./force.js";
+const {vec4} = tiny;
 
 export class RigidBody 
 {
-    constructor(mass, velocity, is_kinematic)
+    constructor(is_kinematic = false, mass = 1, velocity = vec4(0, 0, 0, 0), restitution = 1.69, friction = 0.3)
     {
-        this.mass = mass;
-        this.is_kinematic = is_kinematic;
-        this.velocity = velocity;
+        this.mass = mass; // float.
+        this.velocity = velocity; // vec4 where velocity[3] = 0.
+        this.restitution = restitution; // float.
+        this.friction = friction; // float.
+        this.is_kinematic = is_kinematic; // bool.
         this.forces = new Map();
     }
 

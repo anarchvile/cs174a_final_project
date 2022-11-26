@@ -1,9 +1,7 @@
-import {defs, tiny} from "../../include/common.js";
-import { support } from "./support.js";
-import { Simplex } from "../geometry/simplex.js";
-
-// Pull these names into this module's scope for convenience:
-const {vec3, unsafe3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
+import {tiny} from "../../include/common.js";
+import {support} from "./support.js";
+import {Simplex} from "./simplex.js";
+const {vec4} = tiny;
 
 // https://apps.dtic.mil/sti/pdfs/ADA622925.pdf
 export class GJKCollision
