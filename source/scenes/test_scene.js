@@ -23,6 +23,8 @@ export class TestScene extends PhysicsSim
         this.flag = false;
         this.bullet_idx = 0;
         this.ground;
+
+        this.rigidbodies = [];
     }
 
     initialize(context, program_state)
@@ -202,6 +204,11 @@ export class TestScene extends PhysicsSim
             go4.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
             go4.add_collider_component(collider_types.AABB, go4.scale);
             this.add_rigidbody(go4);
+
+            this.rigidbodies.push(go1);
+            this.rigidbodies.push(go2);
+            this.rigidbodies.push(go3);
+            this.rigidbodies.push(go4);
         }
     }
 
@@ -219,7 +226,17 @@ export class TestScene extends PhysicsSim
         }
         else if (this.test_scene == 5)
         {
-            // For example, spawn in boxes to shoot at every-so-often.
+            // For example, spawn in boxes to shoot at every-so-often,
+            // or remove objects that fall off the scene.
+            for (let i = this.rigidbodies.length - 1; i >= 0; --i)
+            {
+                if (this.rigidbodies[i].position[1] < -100)
+                {
+                    this.remove_rigidbody(this.rigidbodies[i].name);
+                    this.rigidbodies.splice(i, 1);
+                }
+            }
+            console.log(this.rigidbodies.length);
         }
     }
 
@@ -239,6 +256,7 @@ export class TestScene extends PhysicsSim
             go.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
             go.add_collider_component(collider_types.Sphere, radius);
             this.add_rigidbody(go);
+            this.rigidbodies.push(go);
 
             this.bullet_idx += 1;
         }
@@ -272,6 +290,10 @@ export class TestScene extends PhysicsSim
             go3.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
             go3.add_collider_component(collider_types.Sphere, radius);
             this.add_rigidbody(go3);
+
+            this.rigidbodies.push(go1);
+            this.rigidbodies.push(go2);
+            this.rigidbodies.push(go3);
 
             this.bullet_idx += 1;
         }
