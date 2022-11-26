@@ -3,6 +3,7 @@ import {Contact} from "../collision/contact.js"
 import {GJKCollision} from "../collision/gjk_collision.js";
 import {EPA} from "../collision/epa.js";
 import { collider_types } from "../collision/collider.js";
+import { RigidBody } from "./rigidbody.js";
 const {vec3, vec4, Mat4, Scene} = tiny;
 
 // The PhysicsSim class handles all rigidbody physics simulation behavior, including
@@ -53,6 +54,17 @@ export class PhysicsSim extends Scene
     initialize(context, program_state) 
     {
         throw "IMPLEMENT INITIALIZE!";
+    }
+
+    // Accessors 
+    /**
+     * 
+     * @param {string} name of RigidBody
+     * @returns {RigidBody}
+     */
+    get_rigidbody(name) {
+        // Note: returns undefined if not found 
+        return this.#game_objects.get(name);
     }
 
     fixed_update(frame_time)
