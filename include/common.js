@@ -929,8 +929,10 @@ const Movement_Controls = defs.Movement_Controls =
                     this.low_grav = true;
                 }
             });
-            this.key_triggered_button("Slow-Mo", ["d"], () => {this.speed = 0.01;},
-                undefined, () => {this.speed = this.temp_speed;});
+            this.key_triggered_button("Slow-Mo", ["d"], () => {
+                this.speed = 0.01;
+                setTimeout(() => {this.speed = this.temp_speed;}, 2000);
+            });
             this.key_triggered_button("Freeze", ["f"], () => {
                 this.speed = 0;
                 setTimeout(() => {this.speed = this.temp_speed;}, 2000);
