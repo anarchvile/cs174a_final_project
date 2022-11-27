@@ -816,7 +816,7 @@ const Movement_Controls = defs.Movement_Controls =
             super();
             const data_members = {
                 thrust: vec3(1, 0, 0), pos: vec3(0, 0, 0), z_axis: vec3(0, 0, 0), speed: 0.05, fire_interval: 30, fire_counter: 0,
-                h_sensitivity: 0.1, v_sensitivity: 0.12, v_offset: -1, d_offset: -2, special_fire_counter: 0, special_fire_interval: 30
+                h_sensitivity: 0.1, v_sensitivity: 0.12, v_offset: -1, d_offset: -2, special_fire_counter: 0, special_fire_interval: 30,
             };
             Object.assign(this, data_members);
 
@@ -829,6 +829,7 @@ const Movement_Controls = defs.Movement_Controls =
             this.alt_gun_position2 = vec3(0,0,0,0);
             this.alt_gun_position3 = vec3(0,0,0,0);
             this.gun_aim = vec4(0,0,0,0);
+            this.temp_speed = this.speed;
         }
 
         set_recipient(matrix_closure, inverse_closure) {
@@ -894,20 +895,23 @@ const Movement_Controls = defs.Movement_Controls =
             const speed_controls = this.control_panel.appendChild(document.createElement("span"));
             speed_controls.style.margin = "30px";
             this.key_triggered_button("-", ["o"], () =>
-                this.speed /= 1.2, undefined, undefined, undefined, speed_controls);
+            {this.speed /= 1.2; this.temp_speed /= 1.2;}, undefined, undefined, undefined, speed_controls);
             this.live_string(box => {
                 box.textContent = "Speed: " + this.speed.toFixed(2)
             }, speed_controls);
             this.key_triggered_button("+", ["p"], () =>
-                this.speed *= 1.2, undefined, undefined, undefined, speed_controls);
+            {this.speed *= 1.2; this.temp_speed *= 1.2;}, undefined, undefined, undefined, speed_controls);
             this.new_line();
-            this.key_triggered_button("shotgun", ["s"], () => {
+            this.key_triggered_button("Shotgun", ["s"], () => {
                 if(this.special_fire_counter >= this.special_fire_interval)
                 {
                     this.special_fire_counter = 0;
                     this.alt_fire = true;
                 }
             });
+            this.key_triggered_button("Freeze", ["f"], () => {this.speed = 0;},
+                undefined, () => {this.speed = this.temp_speed;});
+
         }
 
 
