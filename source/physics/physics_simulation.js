@@ -560,6 +560,23 @@ export class PhysicsSim extends Scene
         });
     }
 
+    // Accessors 
+    /**
+     * 
+     * @param {string} name of RigidBody
+     * @returns {GameObject}
+     */
+     get_game_object(name) 
+    {
+        // Note: returns undefined if not found
+        return this.#game_objects.get(name);
+    }
+
+    get_all_game_objects()
+    {
+        return Array.from(this.#game_objects.values());
+    }
+
     // Try to add a GameObject with a valid Rigidbody to the physics simulation.
     add_rigidbody(game_object)
     {

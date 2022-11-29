@@ -362,16 +362,28 @@ export class TestScene extends PhysicsSim {
             //this.remove_collider("Wall4");
             this.flag = true;
         }
-        else if (this.test_scene >= 5) {
-            // For example, spawn in boxes to shoot at every-so-often,
-            // or remove objects that fall off the scene.
-            for (let i = this.rigidbodies.length - 1; i >= 0; --i) {
-                if (this.rigidbodies[i].position[1] < -100) {
-                    this.remove_rigidbody(this.rigidbodies[i].name);
-                    this.rigidbodies.splice(i, 1);
+        let all_go = this.get_all_game_objects();
+        for (let i = all_go.length - 1; i >= 0; --i)
+        {
+            const go = all_go[i];
+            // Get rid of any game objects that lie outside the camera frustrum.
+            if 
+            (
+                go.position[0] <= context.scratchpad.controls.gun_position[0] - 200 || 
+                go.position[1] <= -200 || 
+                go.position[2] < -200
+            )
+            {
+                if (go.has_rigidbody_component())
+                {
+                    this.remove_rigidbody(go.name);
                 }
+                else
+                {
+                    this.remove_collider(go.name);
+                }
+                all_go.splice(i, 1);
             }
-            console.log(this.rigidbodies.length);
         }
     }
 
@@ -466,11 +478,11 @@ export class TestScene extends PhysicsSim {
         // add checks for each 'level' to see if goal is completed 
         // no level format set yet, just relying on test scene #'s
         if (this.test_scene == 7) {
-            let ball1 = this.get_rigidbody("Ball1");
-            let ball2 = this.get_rigidbody("Ball2");
-            let ball3 = this.get_rigidbody("Ball3");
-            let ball4 = this.get_rigidbody("Ball4");
-            if (ball1 && ball1.position[1] < 14 && // values are initially null, first "ball1" is needed for undefined check
+            let ball1 = this.get_game_object("Ball1");
+            let ball2 = this.get_game_object("Ball2");
+            let ball3 = this.get_game_object("Ball3");
+            let ball4 = this.get_game_object("Ball4");
+            if (ball1 && ball1.position[1] < 14 &&
                 ball2 && ball2.position[1] < 12 &&
                 ball3 && ball3.position[1] < 12 &&
                 ball4 && ball4.position[1] < 14) {
