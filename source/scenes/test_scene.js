@@ -34,6 +34,8 @@ export class TestScene extends PhysicsSim {
         this.flag = false;
         this.bullet_idx = 0;
         this.ground;
+
+        this.rigidbodies = [];
     }
 
     initialize(context, program_state) {
@@ -207,6 +209,11 @@ export class TestScene extends PhysicsSim {
             go4.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
             go4.add_collider_component(collider_types.AABB, go4.scale);
             this.add_rigidbody(go4);
+
+            this.rigidbodies.push(go1);
+            this.rigidbodies.push(go2);
+            this.rigidbodies.push(go3);
+            this.rigidbodies.push(go4);
         } else if (this.test_scene == 6) { // TEST SCENE WITH BUILDINGS + MOVABLE DOORS
             // local here, not sure if needed for other scenes
             let cube_index = 0;
@@ -241,7 +248,6 @@ export class TestScene extends PhysicsSim {
                 each.add_collider_component(collider_types.AABB, each.scale);
                 this.add_rigidbody(each);
             })
-
 
             let wall4 = new GameObject("Wall4", this.shapes.cube, this.materials.box2, vec4(-40.5, 0, 0, 1), vec3(0.5, 0.5, 0), vec3(1, 10, 10));
             wall4.add_rigidbody_component(true);
@@ -334,8 +340,19 @@ export class TestScene extends PhysicsSim {
             //this.remove_collider("Wall4");
             this.flag = true;
         }
-        else if (this.test_scene == 5) {
-            // For example, spawn in boxes to shoot at every-so-often.
+        else if (this.test_scene >= 5)
+        {
+            // For example, spawn in boxes to shoot at every-so-often,
+            // or remove objects that fall off the scene.
+            for (let i = this.rigidbodies.length - 1; i >= 0; --i)
+            {
+                if (this.rigidbodies[i].position[1] < -100)
+                {
+                    this.remove_rigidbody(this.rigidbodies[i].name);
+                    this.rigidbodies.splice(i, 1);
+                }
+            }
+            console.log(this.rigidbodies.length);
         }
     }
 
@@ -353,6 +370,76 @@ export class TestScene extends PhysicsSim {
             go.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
             go.add_collider_component(collider_types.Sphere, radius);
             this.add_rigidbody(go);
+            this.rigidbodies.push(go);
+
+            this.bullet_idx += 1;
+        }
+        if (controls.shotgun)
+        {
+            const name1 = "Bullet1" + this.bullet_idx.toString();
+            const name2 = "Bullet2" + this.bullet_idx.toString();
+            const name3 = "Bullet3" + this.bullet_idx.toString();
+            const gravity = -0.5;
+            const speed = 10;
+            const radius = 1;
+
+            // Spawn new "bullet."
+            let go1 = new GameObject(name1, this.shapes.sphere, this.materials.plastic.override({ color: color(1, 0, 0, 1) }), controls.shotgun_position1, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go1.add_rigidbody_component();
+            go1.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go1.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go1.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go1);
+
+            let go2 = new GameObject(name2, this.shapes.sphere, this.materials.plastic.override({ color: color(0, 1, 0, 1) }), controls.shotgun_position2, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go2.add_rigidbody_component();
+            go2.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go2.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go2.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go2);
+
+            let go3 = new GameObject(name3, this.shapes.sphere, this.materials.plastic.override({ color: color(0, 0, 1, 1) }), controls.shotgun_position3, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go3.add_rigidbody_component();
+            go3.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go3.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go3.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go3);
+
+            this.rigidbodies.push(go1);
+            this.rigidbodies.push(go2);
+            this.rigidbodies.push(go3);
+
+            this.bullet_idx += 1;
+        }
+        if (controls.cannon) {
+            const name = "Cannon" + this.bullet_idx.toString();
+            const gravity = -0.5;
+            const speed = 10;
+            const radius = 5;
+
+            let go = new GameObject(name, this.shapes.sphere, this.materials.plastic.override({ color: color(1, 0, 1, 1) }), controls.gun_position, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go.add_rigidbody_component();
+            go.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go);
+            this.rigidbodies.push(go);
+
+            this.bullet_idx += 1;
+        }
+        if (controls.low_grav) {
+            const name = "Floater" + this.bullet_idx.toString();
+            const gravity = -0.1;
+            const speed = 5;
+            const radius = 1;
+
+            let go = new GameObject(name, this.shapes.sphere, this.materials.plastic.override({ color: color(0, 1, 1, 1) }), controls.gun_position, vec3(0, 0, 0), vec3(radius, radius, radius));
+            go.add_rigidbody_component();
+            go.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
+            go.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
+            go.add_collider_component(collider_types.Sphere, radius);
+            this.add_rigidbody(go);
+            this.rigidbodies.push(go);
 
             this.bullet_idx += 1;
         }
@@ -422,7 +509,3 @@ export class TestScene extends PhysicsSim {
         super.display(context, program_state);
     }
 }
-
-/** TODO (ldalton02)
- * new level idea: indoor warehouse, no movement, need to knock over all boxes of shelves?
- */

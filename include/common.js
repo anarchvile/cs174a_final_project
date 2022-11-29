@@ -816,15 +816,26 @@ const Movement_Controls = defs.Movement_Controls =
             super();
             const data_members = {
                 thrust: vec3(1, 0, 0), pos: vec3(0, 0, 0), z_axis: vec3(0, 0, 0), speed: 0.05, fire_interval: 30, fire_counter: 0,
-                h_sensitivity: 0.1, v_sensitivity: 0.12, v_offset: -1, d_offset: -2
+                h_sensitivity: 0.1, v_sensitivity: 0.12, v_offset: -1, d_offset: -2, shotgun_fire_counter: 0, cannon_counter: 0,
+                low_grav_fire_counter: 0
             };
             Object.assign(this, data_members);
 
             this.mouse_enabled_canvases = new Set();
             this.will_take_over_graphics_state = true;
+
             this.fire = false;
+            this.shotgun = false;
+            this.cannon = false;
+            this.low_grav = false;
+
             this.gun_position = vec3(0,0,0,0);
+            this.shotgun_position1 = vec3(0,0,0,0);
+            this.shotgun_position2 = vec3(0,0,0,0);
+            this.shotgun_position3 = vec3(0,0,0,0);
             this.gun_aim = vec4(0,0,0,0);
+
+            this.temp_speed = this.speed;
         }
 
         set_recipient(matrix_closure, inverse_closure) {
@@ -890,13 +901,42 @@ const Movement_Controls = defs.Movement_Controls =
             const speed_controls = this.control_panel.appendChild(document.createElement("span"));
             speed_controls.style.margin = "30px";
             this.key_triggered_button("-", ["o"], () =>
-                this.speed /= 1.2, undefined, undefined, undefined, speed_controls);
+            {this.speed /= 1.2; this.temp_speed = this.speed;}, undefined, undefined, undefined, speed_controls);
             this.live_string(box => {
                 box.textContent = "Speed: " + this.speed.toFixed(2)
             }, speed_controls);
             this.key_triggered_button("+", ["p"], () =>
-                this.speed *= 1.2, undefined, undefined, undefined, speed_controls);
+            {this.speed *= 1.2; this.temp_speed = this.speed;}, undefined, undefined, undefined, speed_controls);
             this.new_line();
+            this.key_triggered_button("Shotgun", ["q"], () => {
+                if(this.shotgun_fire_counter >= this.fire_interval)
+                {
+                    this.shotgun_fire_counter = 0;
+                    this.shotgun = true;
+                }
+            });
+            this.key_triggered_button("Cannon", ["w"], () => {
+                if(this.cannon_counter >= this.fire_interval)
+                {
+                    this.cannon_counter = 0;
+                    this.cannon = true;
+                }
+            });
+            this.key_triggered_button("Floating Bullet", ["e"], () => {
+                if(this.low_grav_fire_counter >= this.fire_interval)
+                {
+                    this.low_grav_fire_counter = 0;
+                    this.low_grav = true;
+                }
+            });
+            this.key_triggered_button("Slow-Mo", ["d"], () => {
+                this.speed = 0.01;
+                setTimeout(() => {this.speed = this.temp_speed;}, 2000);
+            });
+            this.key_triggered_button("Freeze", ["f"], () => {
+                this.speed = 0;
+                setTimeout(() => {this.speed = this.temp_speed;}, 2000);
+            });
         }
 
         #_move()
@@ -906,11 +946,14 @@ const Movement_Controls = defs.Movement_Controls =
 
             // cache and provide gun position vector, for downstream convenience
             this.gun_position = vec3(m[0][3], m[1][3] + this.v_offset, m[2][3] + this.d_offset);
+
+            this.shotgun_position1 = vec3(m[0][3], m[1][3] + 2, m[2][3] + this.d_offset);
+            this.shotgun_position2 = vec3(m[0][3] + (-2), m[1][3] + (-2), m[2][3] + this.d_offset);
+            this.shotgun_position3 = vec3(m[0][3] + 2, m[1][3] + (-2), m[2][3] + this.d_offset);
         }
 
         #_aim()
         {
-
             let mtx = this.matrix();
             let eye = vec3(mtx[0][3], mtx[1][3], mtx[2][3]);
             let x = this.mouse.from_center[0] * this.h_sensitivity;
@@ -933,6 +976,30 @@ const Movement_Controls = defs.Movement_Controls =
             this.fire_counter += 1;
         }
 
+        #_shotgun()
+        {
+            // fire with predefined frequency
+            if(this.shotgun_fire_counter >= 0 && this.shotgun_fire_counter < this.fire_interval)
+                this.shotgun = false;
+            this.shotgun_fire_counter += 1;
+        }
+
+        #_cannon()
+        {
+            // fire with predefined frequency
+            if(this.cannon_counter >= 0 && this.cannon_counter < this.fire_interval)
+                this.cannon = false;
+            this.cannon_counter += 1;
+        }
+
+        #_low_grav()
+        {
+            // fire with predefined frequency
+            if(this.low_grav_fire_counter >= 0 && this.low_grav_fire_counter < this.fire_interval)
+                this.low_grav = false;
+            this.low_grav_fire_counter += 1;
+        }
+
         display(context, graphics_state) {
             // The whole process of acting upon controls begins here.
             if (this.will_take_over_graphics_state) {
@@ -948,6 +1015,9 @@ const Movement_Controls = defs.Movement_Controls =
             this.#_move();
             this.#_aim();
             this.#_fire();
+            this.#_shotgun();
+            this.#_cannon();
+            this.#_low_grav();
         }
     }
 
