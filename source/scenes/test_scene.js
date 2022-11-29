@@ -53,6 +53,12 @@ export class TestScene extends PhysicsSim {
             10: Mat4.identity(),
         }
 
+        this.required_level_objects = {
+            7: ["Ball1", "Ball2", "Ball3", "Ball4"],
+            9: ["tower1", "tower2", "tower3", "tower4", "tower5"],
+        }
+
+
         this.test_scene = 6; // Switch from 1 to 4 for different test cases.
         this.flag = false;
         this.bullet_idx = 0;
@@ -374,11 +380,19 @@ export class TestScene extends PhysicsSim {
                 go.position[2] < -200
             )
             {
-                if (go.has_rigidbody_component())
+                let level = this.test_scene;
+                let do_not_remove = false;
+                if (this.required_level_objects[level].forEach(each => {
+                    if (each == go.name) {
+                        do_not_remove = true;
+                    }
+                }))
+
+                if (go.has_rigidbody_component() && !do_not_remove)
                 {
                     this.remove_rigidbody(go.name);
                 }
-                else
+                else if (!do_not_remove)
                 {
                     this.remove_collider(go.name);
                 }
@@ -475,8 +489,7 @@ export class TestScene extends PhysicsSim {
     }
 
     game_over() {
-        // add checks for each 'level' to see if goal is completed 
-        // no level format set yet, just relying on test scene #'s
+        // note: since game objects are removed as time passes, an object might be removed
         if (this.test_scene == 7) {
             let ball1 = this.get_game_object("Ball1");
             let ball2 = this.get_game_object("Ball2");

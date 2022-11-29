@@ -83,11 +83,9 @@ export class PhysicsSim extends Scene
         }
         for (let go of this.#cached_rigidbodies_to_remove)
         {
-            // bug: never actually removed from cache
-            // workaround in place of just not naming gameobjects the same again
-            // maybe fix later
             this.#game_objects.delete(go.name);
         }
+        this.#cached_rigidbodies_to_remove = [];
         for (let go of this.#cached_colliders_to_add)
         {
             this.#game_objects.set(go.name, go);
@@ -96,6 +94,7 @@ export class PhysicsSim extends Scene
         {
             this.#game_objects.delete(go.name);
         }
+        this.#cached_colliders_to_remove = [];
 
         this.#cached_rigidbodies_to_add.length = 0;
         this.#cached_colliders_to_remove.length = 0;
