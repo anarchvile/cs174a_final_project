@@ -4,6 +4,7 @@ import {GJKCollision} from "../collision/gjk_collision.js";
 import {EPA} from "../collision/epa.js";
 import { collider_types } from "../collision/collider.js";
 import { RigidBody } from "./rigidbody.js";
+import { GameObject } from "../game/gameobject.js";
 const {vec3, vec4, Mat4, Scene} = tiny;
 
 // The PhysicsSim class handles all rigidbody physics simulation behavior, including
@@ -67,6 +68,12 @@ export class PhysicsSim extends Scene
         return this.#game_objects.get(name);
     }
 
+    remove_all_game_objects() {
+        this.#game_objects.forEach(game_object => {
+            this.#cached_rigidbodies_to_remove.push(game_object);
+        })
+    }
+
     fixed_update(frame_time)
     {
         // Add/remove cached game objects, and reset the caches.
@@ -76,6 +83,9 @@ export class PhysicsSim extends Scene
         }
         for (let go of this.#cached_rigidbodies_to_remove)
         {
+            // bug: never actually removed from cache
+            // workaround in place of just not naming gameobjects the same again
+            // maybe fix later
             this.#game_objects.delete(go.name);
         }
         for (let go of this.#cached_colliders_to_add)

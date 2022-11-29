@@ -3,7 +3,7 @@ import { PhysicsSim } from "../physics/physics_simulation.js"
 import { GameObject } from "../game/gameobject.js";
 import { collider_types } from "../collision/collider.js";
 import { Force } from "../physics/force.js";
-const { vec3, vec4, color, hex_color, Mat4, Light, Material } = tiny;
+const { Vector, vec3, vec4, color, hex_color, Mat4, Light, Material, Texture } = tiny;
 
 export class TestScene extends PhysicsSim {
     constructor() {
@@ -28,17 +28,59 @@ export class TestScene extends PhysicsSim {
                 { ambient: 1, diffusivity: 1, specularity: 0.5, color: hex_color("#7c0a02") }),
             box2: new Material(new defs.Phong_Shader(),
                 { ambient: 1, diffusivity: 1, specularity: 0.5, color: hex_color("#533c3e") }),
+            next_level_texture: new Material(new defs.Textured_Phong(), {
+                color: hex_color("#000000"),
+                ambient: 1, diffusivity: 0.1, specularity: 0.1,
+                texture: new Texture("source/textures/level_complete.png", "NEAREST")
+            }),
+            game_over_texture: new Material(new defs.Textured_Phong(), {
+                color: hex_color("#000000"),
+                ambient: 1, diffusivity: 0.1, specularity: 0.1,
+                texture: new Texture("source/textures/game_over.png", "NEAREST")
+            }),
+            welcome_texture: new Material(new defs.Textured_Phong(), {
+                color: hex_color("#000000"),
+                ambient: 1, diffusivity: 0.1, specularity: 0.1,
+                texture: new Texture("source/textures/welcome.png", "NEAREST")
+            }),
 
-        };
-        this.test_scene = 7; // Switch from 1 to 4 for different test cases.
+        }
+        this.initial_camera_positions = {
+            6: Mat4.identity(),
+            7: Mat4.translation(50, -20, -40),
+            8: Mat4.identity(),
+            9: Mat4.rotation(Math.PI, 0, 1, 0).times(Mat4.translation(-50, -5, 5)),
+            10: Mat4.identity(),
+        }
+
+        this.test_scene = 6; // Switch from 1 to 4 for different test cases.
         this.flag = false;
         this.bullet_idx = 0;
         this.ground;
+        this.reset_flag = false;
+        this.initial_message_time = -1;
 
         this.rigidbodies = [];
     }
 
+
+
+    make_control_panel() {
+        super.make_control_panel();
+        this.new_line();
+        this.key_triggered_button("Next level", ["m"], () => {
+
+        });
+
+        this.key_triggered_button("Restart Level", ["r"], () => {
+            this.reset_flag = true;
+        })
+    }
+
+
+
     initialize(context, program_state) {
+        this.reset_flag = true;
         if (this.test_scene == 1) {
             // Test Scene 1 - Sphere-Sphere Collision in Free Space.
             let go1 = new GameObject("Sphere1", this.shapes.sphere, this.materials.plastic, vec4(-10, 0, 0, 1), vec3(0, 0, 0), vec3(2, 2, 2));
@@ -215,64 +257,7 @@ export class TestScene extends PhysicsSim {
             this.rigidbodies.push(go3);
             this.rigidbodies.push(go4);
         } else if (this.test_scene == 6) { // TEST SCENE WITH BUILDINGS + MOVABLE DOORS
-            // local here, not sure if needed for other scenes
-            let cube_index = 0;
 
-            this.ground = new GameObject("Ground", this.shapes.cube, this.materials.grass_ground, vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(60, 1, 60));
-            this.ground.add_rigidbody_component(true);
-            this.ground.add_collider_component(collider_types.AABB, this.ground.scale);
-            this.add_rigidbody(this.ground);
-
-            // adding a barn in back corner 
-            let wall1 = new GameObject("Wall1", this.shapes.cube, this.materials.box1, vec4(-10.5, 0, 0, 1), vec3(0.5, 0.5, 0), vec3(1, 10, 10));
-            wall1.add_rigidbody_component(true);
-            wall1.add_collider_component(collider_types.AABB, wall1.scale);
-            this.add_rigidbody(wall1);
-            let wall2 = new GameObject("Wall2", this.shapes.cube, this.materials.box1, vec4(0, 0, -10.5, 1), vec3(0, 0, 0), vec3(10, 10, 1));
-            wall2.add_rigidbody_component(true);
-            wall2.add_collider_component(collider_types.AABB, wall2.scale);
-            this.add_rigidbody(wall2);
-            let wall3 = new GameObject("Wall3", this.shapes.cube, this.materials.box1, vec4(10.5, 0, 0, 1), vec3(0, 0, 0), vec3(1, 10, 10));
-            wall3.add_rigidbody_component(true);
-            wall3.add_collider_component(collider_types.AABB, wall3.scale);
-            this.add_rigidbody(wall3);
-            let cubes1 = [];
-            for (let i = 0; i < 10; i++) {
-                let my_cube = new GameObject(`WallCube${cube_index}`, this.shapes.cube, this.materials.box1, vec3(-8.5 + 2 * i, 0, 9), vec3(0, 0, 0), vec3(1, 10, 1));
-                cubes1.push(my_cube);
-                cube_index++;
-            }
-            cubes1.forEach(each => {
-                each.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
-                each.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
-                each.add_collider_component(collider_types.AABB, each.scale);
-                this.add_rigidbody(each);
-            })
-
-            let wall4 = new GameObject("Wall4", this.shapes.cube, this.materials.box2, vec4(-40.5, 0, 0, 1), vec3(0.5, 0.5, 0), vec3(1, 10, 10));
-            wall4.add_rigidbody_component(true);
-            wall4.add_collider_component(collider_types.AABB, wall4.scale);
-            this.add_rigidbody(wall4);
-            let wall5 = new GameObject("Wall5", this.shapes.cube, this.materials.box2, vec4(-30.5, 0, -10.5, 1), vec3(0, 0, 0), vec3(10, 10, 1));
-            wall5.add_rigidbody_component(true);
-            wall5.add_collider_component(collider_types.AABB, wall5.scale);
-            this.add_rigidbody(wall5);
-            let wall6 = new GameObject("Wall6", this.shapes.cube, this.materials.box2, vec4(-20.5, 0, 0, 1), vec3(0, 0, 0), vec3(1, 10, 10));
-            wall6.add_rigidbody_component(true);
-            wall6.add_collider_component(collider_types.AABB, wall6.scale);
-            this.add_rigidbody(wall6);
-            let cubes2 = [];
-            for (let i = 0; i < 10; i++) {
-                let my_cube = new GameObject(`WallCube${cube_index}`, this.shapes.cube, this.materials.box2, vec3(-40.5 + 2 * i, 0, 9), vec3(0, 0, 0), vec3(1, 10, 1));
-                cubes2.push(my_cube);
-                cube_index++;
-            }
-            cubes2.forEach(each => {
-                each.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
-                each.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
-                each.add_collider_component(collider_types.AABB, each.scale);
-                this.add_rigidbody(each);
-            })
         } else if (this.test_scene == 7) { // Level with multiple towers you need to "knock" spheres off of 
             this.ground = new GameObject("Ground", this.shapes.cube, this.materials.grass_ground, vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(60, 1, 60));
             this.ground.add_rigidbody_component(true);
@@ -326,9 +311,46 @@ export class TestScene extends PhysicsSim {
             ball4.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
             ball4.add_collider_component(collider_types.AABB, ball4.scale);
             this.add_rigidbody(ball4);
+        } else if (this.test_scene == 8) {
+            // nothing to do
+        } else if (this.test_scene == 9) {
+            this.ground = new GameObject("Ground2", this.shapes.cube, this.materials.grass_ground.override({ color: hex_color("#c3834d") }), vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(60, 1, 60));
+            this.ground.add_rigidbody_component(true);
+            this.ground.add_collider_component(collider_types.AABB, this.ground.scale);
+            this.add_rigidbody(this.ground);
+
+            //////////////////////// CREATING ALL TOWERS ////////////////////////
+            let tower1 = new GameObject("tower1", this.shapes.cube, this.materials.box1.override({ color: color(Math.random(), Math.random(), Math.random(), 1) }), vec4(20, 3, -55, 1), vec3(0, 0, 0), vec3(2, 10, 2));
+            tower1.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            tower1.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            tower1.add_collider_component(collider_types.AABB, tower1.scale);
+            this.add_rigidbody(tower1);
+
+            let tower2 = new GameObject("tower2", this.shapes.cube, this.materials.box1.override({ color: color(Math.random(), Math.random(), Math.random(), 1) }), vec4(40, 3, -55, 1), vec3(0, 0, 0), vec3(2, 10, 2));
+            tower2.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            tower2.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            tower2.add_collider_component(collider_types.AABB, tower2.scale);
+            this.add_rigidbody(tower2);
+
+            let tower3 = new GameObject("tower3", this.shapes.cube, this.materials.box1.override({ color: color(Math.random(), Math.random(), Math.random(), 1) }), vec4(0, 3, -55, 1), vec3(0, 0, 0), vec3(2, 10, 2));
+            tower3.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            tower3.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            tower3.add_collider_component(collider_types.AABB, tower3.scale);
+            this.add_rigidbody(tower3);
+
+            let tower4 = new GameObject("tower4", this.shapes.cube, this.materials.box1.override({ color: color(Math.random(), Math.random(), Math.random(), 1) }), vec4(-20, 3, -55, 1), vec3(0, 0, 0), vec3(2, 10, 2));
+            tower4.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            tower4.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            tower4.add_collider_component(collider_types.AABB, tower4.scale);
+            this.add_rigidbody(tower4);
+
+            let tower5 = new GameObject("tower5", this.shapes.cube, this.materials.box1.override({ color: color(Math.random(), Math.random(), Math.random(), 1) }), vec4(-40, 3, -55, 1), vec3(0, 0, 0), vec3(2, 10, 2));
+            tower5.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            tower5.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            tower5.add_collider_component(collider_types.AABB, tower5.scale);
+            this.add_rigidbody(tower5);
         }
     }
-
 
     update(context, program_state) {
         // Do some update stuff...
@@ -340,14 +362,11 @@ export class TestScene extends PhysicsSim {
             //this.remove_collider("Wall4");
             this.flag = true;
         }
-        else if (this.test_scene >= 5)
-        {
+        else if (this.test_scene >= 5) {
             // For example, spawn in boxes to shoot at every-so-often,
             // or remove objects that fall off the scene.
-            for (let i = this.rigidbodies.length - 1; i >= 0; --i)
-            {
-                if (this.rigidbodies[i].position[1] < -100)
-                {
+            for (let i = this.rigidbodies.length - 1; i >= 0; --i) {
+                if (this.rigidbodies[i].position[1] < -100) {
                     this.remove_rigidbody(this.rigidbodies[i].name);
                     this.rigidbodies.splice(i, 1);
                 }
@@ -374,8 +393,7 @@ export class TestScene extends PhysicsSim {
 
             this.bullet_idx += 1;
         }
-        if (controls.shotgun)
-        {
+        if (controls.shotgun) {
             const name1 = "Bullet1" + this.bullet_idx.toString();
             const name2 = "Bullet2" + this.bullet_idx.toString();
             const name3 = "Bullet3" + this.bullet_idx.toString();
@@ -440,7 +458,6 @@ export class TestScene extends PhysicsSim {
             go.add_collider_component(collider_types.Sphere, radius);
             this.add_rigidbody(go);
             this.rigidbodies.push(go);
-
             this.bullet_idx += 1;
         }
     }
@@ -453,10 +470,26 @@ export class TestScene extends PhysicsSim {
             let ball2 = this.get_rigidbody("Ball2");
             let ball3 = this.get_rigidbody("Ball3");
             let ball4 = this.get_rigidbody("Ball4");
-            if (ball1 && ball1.position[1] < 14 &&
+            if (ball1 && ball1.position[1] < 14 && // values are initially null, first "ball1" is needed for undefined check
                 ball2 && ball2.position[1] < 12 &&
                 ball3 && ball3.position[1] < 12 &&
-                ball4 && ball4.position[1] < 14) { // Need first "ball1" due to initial NULL value
+                ball4 && ball4.position[1] < 14) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        if (this.test_scene == 9) {
+            let tower1 = this.get_rigidbody("tower1");
+            let tower2 = this.get_rigidbody("tower2");
+            let tower3 = this.get_rigidbody("tower3");
+            let tower4 = this.get_rigidbody("tower4");
+            let tower5 = this.get_rigidbody("tower5");
+            if (tower1 && tower1.position[1] < 0 && // values are initially null, first "tower1" is needed for undefined check
+                tower2 && tower2.position[1] < 0 &&
+                tower3 && tower3.position[1] < 0 &&
+                tower4 && tower4.position[1] < 0 &&
+                tower5 && tower5.position[1] < 0) {
                 return true;
             } else {
                 return false;
@@ -465,45 +498,97 @@ export class TestScene extends PhysicsSim {
         return false;
     }
 
+    should_update_scene(time) {
+        if (this.test_scene == 6 || this.test_scene == 8) {
+            if (this.initial_message_time == -1) {
+                this.initial_message_time = time;
+            } else {
+                if (time - this.initial_message_time > 6) {
+                    this.test_scene = this.test_scene + 1;
+                    this.reset_flag = true;
+                    this.initial_message_time = -1;
+                }
+            }
+        }
+    }
+
     display(context, program_state) {
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
-            if (this.test_scene == 7) {
-                program_state.set_camera(Mat4.translation(40, -20, -40));
-            } else {
-                program_state.set_camera(Mat4.translation(20, -20, -50));
+            let test_scene = this.test_scene
+            let matrix = this.initial_camera_positions[test_scene];
+            program_state.set_camera(matrix);
+        }
+        let t = program_state.animation_time / 1000
+        this.should_update_scene(t);
+
+        if (this.reset_flag) {
+            let test_scene = this.test_scene
+            let matrix = Mat4.identity().times(this.initial_camera_positions[test_scene]);
+            program_state.set_camera(matrix);
+            this.initialize();
+            for (let i = this.rigidbodies.length - 1; i >= 0; --i) {
+                this.remove_rigidbody(this.rigidbodies[i].name);
+                this.rigidbodies.splice(i, 1);
             }
+            this.reset_flag = false;
         }
 
         this.shoot(context.scratchpad.controls);
 
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 1, 200);
+        // extra lights
         program_state.lights = [new Light(vec4(0, 5, 5, 1), color(1, 1, 1, 1), 1000)];
 
-        // Making Sun
         let model_transform = Mat4.identity();
-        let sun_transform = model_transform
-            .times(Mat4.translation(-50, 20, -20))
-            .times(Mat4.scale(3, 3, 3));
-        let sun_color = hex_color("#8b8000");
+        if (this.test_scene == 7 ||
+            this.test_scene == 9) {
+            // Making Sun
+            let sun_transform = model_transform
+                .times(Mat4.translation(-50, 20, -20))
+                .times(Mat4.scale(3, 3, 3));
+            let sun_color = hex_color("#8b8000");
 
-        // Making Lights
-        let sunlight_src_pos = vec4(-50, 20, -20, 1);
-        program_state.lights = [new Light(sunlight_src_pos, hex_color("#ffffff"), 10 ** 8)];
+            // Making Lights
+            let sunlight_src_pos = vec4(-50, 20, -20, 1);
+            program_state.lights = [new Light(sunlight_src_pos, hex_color("#ffffff"), 10 ** 8)];
 
-        // Skybox
-        let skybox_transform = model_transform.times(Mat4.scale(80, 80, 100));
-        let skybox_color_light = color(0.4, 0.7, 1, 1);
-        let skybox_color = (skybox_color_light)
+            // Skybox
+            let skybox_transform = model_transform.times(Mat4.scale(80, 80, 100));
+            let skybox_color_light = color(0.4, 0.7, 1, 1);
+            let skybox_color = (skybox_color_light)
 
-        this.shapes.sphere.draw(context, program_state, sun_transform, this.materials.sun.override({ color: sun_color }));
-        this.shapes.skybox.draw(context, program_state, skybox_transform, this.materials.skybox.override({ color: skybox_color }));
+            this.shapes.sphere.draw(context, program_state, sun_transform, this.materials.sun.override({ color: sun_color }));
+            this.shapes.skybox.draw(context, program_state, skybox_transform, this.materials.skybox.override({ color: skybox_color }));
+        } else if (this.test_scene == 6 || this.test_scene == 8 || this.test_scene == 10) {
+            program_state.set_camera(Mat4.identity());
+            let message_transform = model_transform
+                .times(Mat4.translation(0, 0, -40))
+                .times(Mat4.scale(20, 20, 0.1));
+            let skybox_transform = model_transform.times(Mat4.scale(80, 80, 100));
 
+            let material;
+            if (this.test_scene == 10) {
+                material = this.materials.game_over_texture;
+            } else if (this.test_scene == 8) {
+                material = this.materials.next_level_texture;
+            } else {
+                material = this.materials.welcome_texture;
+            }
+
+            this.shapes.cube.draw(context, program_state, message_transform, material);
+            this.shapes.skybox.draw(context, program_state, skybox_transform, this.materials.skybox.override({ color: hex_color("#ffffff") }));
+        }
         // Calls display in parent "physics_simulation" class
 
         if (this.game_over()) {
-            console.log("Game over!");
-            // TODO: implement some kind of level restart ability 
+            this.remove_all_game_objects();
+            if (this.test_scene < 10) {
+                this.test_scene = this.test_scene + 1;
+            }
+            let test_scene = this.test_scene
+            let matrix = Mat4.identity().times(this.initial_camera_positions[test_scene]);
+            program_state.set_camera(matrix);
         }
 
         super.display(context, program_state);
