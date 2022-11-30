@@ -57,23 +57,6 @@ export class PhysicsSim extends Scene
         throw "IMPLEMENT INITIALIZE!";
     }
 
-    // Accessors 
-    /**
-     * 
-     * @param {string} name of RigidBody
-     * @returns {RigidBody}
-     */
-    get_rigidbody(name) {
-        // Note: returns undefined if not found 
-        return this.#game_objects.get(name);
-    }
-
-    remove_all_game_objects() {
-        this.#game_objects.forEach(game_object => {
-            this.#cached_rigidbodies_to_remove.push(game_object);
-        })
-    }
-
     fixed_update(frame_time)
     {
         // Add/remove cached game objects, and reset the caches.
@@ -100,6 +83,9 @@ export class PhysicsSim extends Scene
         this.#cached_colliders_to_remove.length = 0;
         this.#cached_colliders_to_add.length = 0;
         this.#cached_colliders_to_remove.length = 0;
+
+        // Clear all constraints from previous step since they've been solved for.
+        this.#contact_constraints.clear();
 
         frame_time = this.#time_scale * frame_time;
         
@@ -519,9 +505,6 @@ export class PhysicsSim extends Scene
                 }
             }
 
-            // Clear all constraints since they've been solved for.
-            this.#contact_constraints.clear();
-
             // De-couple our simulation time from our frame rate.
             this.#t += Math.sign(frame_time) * this.#dt;
             this.#time_accumulator -= Math.sign(frame_time) * this.#dt;
@@ -562,7 +545,7 @@ export class PhysicsSim extends Scene
     // Accessors 
     /**
      * 
-     * @param {string} name of RigidBody
+     * @param {string} name of GameObject
      * @returns {GameObject}
      */
      get_game_object(name) 
@@ -574,6 +557,13 @@ export class PhysicsSim extends Scene
     get_all_game_objects()
     {
         return Array.from(this.#game_objects.values());
+    }
+
+    remove_all_game_objects() 
+    {
+        this.#game_objects.forEach(game_object => {
+            this.#cached_rigidbodies_to_remove.push(game_object);
+        });
     }
 
     // Try to add a GameObject with a valid Rigidbody to the physics simulation.
@@ -663,6 +653,17 @@ export class PhysicsSim extends Scene
         {
             console.log("WARNING: No GameObject with name " + "\"" + name + "\" exists in the PhysicsSim object.");
         }
+    }
+
+    // Returns a list of pairs of the object names that collided.
+    collision_callback()
+    {
+        let a = [];
+        for (const key of this.#contact_constraints.keys())
+        {
+            a.push(key);
+        }
+        return a;
     }
 
     display(context, program_state) 

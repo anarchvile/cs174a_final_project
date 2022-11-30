@@ -4,13 +4,15 @@ import {AABBCollider} from "../collision/collider.js";
 import {RigidBody} from "../physics/rigidbody.js";
 const {vec4} = tiny;
 
+export var game_object_types = {Bullet: "Bullet", Target: "Target", Default: "Default"};
+
 export class GameObject
 {
     #rigidbody;
     #collider;
 
     // Constructor for GameObject.
-    constructor(name, shape, material, position, orientation, scale)
+    constructor(name, shape, material, position, orientation, scale, type = game_object_types.Default)
     {
         this.name = name; // string.
         this.shape = shape; // Shape object (e.g. cube, sphere, .OBJ file, etc.).
@@ -18,6 +20,7 @@ export class GameObject
         this.position = position; // vec4 where position[3] = 1.
         this.orientation = orientation; // vec3.
         this.scale = scale; // vec3.
+        this.type = type; // string.
         this.#rigidbody = null; //RigidBody object.
         this.#collider = null; // Collider object.
     }
