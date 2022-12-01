@@ -461,7 +461,7 @@ export class TestScene extends PhysicsSim {
             const speed = 10;
             const radius = 5;
 
-            let go = new GameObject(name, this.shapes.sphere, this.materials.plastic.override({ color: color(1, 0, 1, 1) }), controls.gun_position, vec3(0, 0, 0), vec3(radius, radius, radius));
+            let go = new GameObject(name, this.shapes.sphere, this.materials.plastic.override({ color: color(1, 0, 1, 1) }), controls.cannon_position, vec3(0, 0, 0), vec3(radius, radius, radius));
             go.add_rigidbody_component();
             go.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
             go.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
@@ -477,7 +477,7 @@ export class TestScene extends PhysicsSim {
             const speed = 5;
             const radius = 1;
 
-            let go = new GameObject(name, this.shapes.sphere, this.materials.plastic.override({ color: color(0, 1, 1, 1) }), controls.gun_position, vec3(0, 0, 0), vec3(radius, radius, radius));
+            let go = new GameObject(name, this.shapes.sphere, this.materials.plastic.override({ color: color(0, 1, 1, 1) }), controls.low_grav_position, vec3(0, 0, 0), vec3(radius, radius, radius));
             go.add_rigidbody_component();
             go.get_rigidbody_component().add_force("Shoot", controls.gun_aim.times(speed), false, 1); // Shoot it.
             go.get_rigidbody_component().add_force("Gravity", vec4(0, gravity, 0, 0), true); // Apply gravity.
