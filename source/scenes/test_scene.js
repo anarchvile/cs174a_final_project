@@ -98,7 +98,7 @@ export class TestScene extends PhysicsSim {
         }
 
 
-        this.test_scene = 6;// Switch from 1 to 4 for different test cases.
+        this.test_scene = 11;
         this.flag = false;
         this.direction_flag = true;
         this.bullet_idx = 0;
@@ -128,7 +128,6 @@ export class TestScene extends PhysicsSim {
 
 
     initialize(context, program_state, time) {
-        console.log(time);
         this.reset_flag = true;
         if (this.test_scene == 1) {
             // Test Scene 1 - Sphere-Sphere Collision in Free Space.
@@ -689,6 +688,19 @@ export class TestScene extends PhysicsSim {
 
     }
 
+    is_out_of_bounds(program_state) {
+        if (this.test_scene == 7) {
+            if (program_state.camera_transform[0][3] >= 110) {
+                return true;
+            }
+        } else if (this.test_scene == 9) {
+            if (program_state.camera_transform[0][3] <= -110) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     display(context, program_state) {
         let t = program_state.animation_time / 1000;
         let model_transform = Mat4.identity();
@@ -701,8 +713,6 @@ export class TestScene extends PhysicsSim {
             program_state.set_camera(matrix);
         }
 
-        //////////////// UPDATE SCENE FOR TRANSITIONS ////////////////
-        this.should_update_scene(t);
 
         //////////////// RESET FLAG ////////////////  
         if (this.reset_flag) {
@@ -714,6 +724,7 @@ export class TestScene extends PhysicsSim {
                 this.remove_rigidbody(this.rigidbodies[i].name);
                 this.rigidbodies.splice(i, 1);
             }
+            context.scratchpad.controls.set_speed(0.05);
             this.start_time = t;
             this.reset_flag = false;
 
@@ -721,7 +732,13 @@ export class TestScene extends PhysicsSim {
 
         //////////////// MISC LOCAL FUNCTIONS ////////////////
         this.shoot(context.scratchpad.controls);
-        this.game_over(program_state, t- this.start_time);
+        this.should_update_scene(t);
+        this.game_over(program_state, t - this.start_time);
+        if (this.is_out_of_bounds(program_state)) {
+            context.scratchpad.controls.set_speed(0);
+        }
+
+
 
         //////////////// SCENE-SPECIFIC FUNCTIONS ////////////////
         if (this.test_scene == 11) {
@@ -757,7 +774,7 @@ export class TestScene extends PhysicsSim {
         } else if (this.test_scene == 6 || this.test_scene == 8 || this.test_scene == 10 || this.test_scene == 12) {
             program_state.set_camera(Mat4.identity());
             let message_transform = model_transform
-                .times(Mat4.translation(0,-4, -40))
+                .times(Mat4.translation(0, -4, -40))
                 .times(Mat4.scale(18, 18, 0.1));
             let skybox_transform = model_transform.times(Mat4.scale(80, 80, 100));
 
@@ -781,9 +798,3 @@ export class TestScene extends PhysicsSim {
         super.display(context, program_state);
     }
 }
-
-
-/** TODO(ldalton02)
-    * add another level with some obstacle in it?
-    * add limits to stop the camera from moving if it reaches edge of skybox - in first two levels
- */
