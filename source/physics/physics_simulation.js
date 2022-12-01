@@ -275,7 +275,7 @@ export class PhysicsSim extends Scene
                         {
                             continue;
                         }
-
+                        
                         // Create a new contact constraint for the collision.
                         let contact = new Contact();
                         contact.normal = epa_result.axis.to4(false);
@@ -464,7 +464,7 @@ export class PhysicsSim extends Scene
 
                     const separation = -Math.abs(contact.global_position_j.minus(contact.global_position_i).dot(contact.normal.times(-1)));
 
-                    const steering_constant = 0.001; // Determined via trial-and-error.
+                    const steering_constant = 0.005; // Determined via trial-and-error.
                     const max_correction = -10; // Limit corrective force for position constraint resolution.
                     const slop = 1; // 1 pixel worth of penetration tolerance.
 
