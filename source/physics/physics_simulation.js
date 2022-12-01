@@ -1,18 +1,17 @@
-import {tiny} from "../../include/common.js";
-import {Contact} from "../collision/contact.js"
-import {GJKCollision} from "../collision/gjk_collision.js";
-import {EPA} from "../collision/epa.js";
+import { tiny } from "../../include/common.js";
+import { Contact } from "../collision/contact.js"
+import { GJKCollision } from "../collision/gjk_collision.js";
+import { EPA } from "../collision/epa.js";
 import { collider_types } from "../collision/collider.js";
 import { RigidBody } from "./rigidbody.js";
 import { GameObject } from "../game/gameobject.js";
-const {vec3, vec4, Mat4, Scene} = tiny;
+const { vec3, vec4, Mat4, Scene } = tiny;
 
 // The PhysicsSim class handles all rigidbody physics simulation behavior, including
 // applying forces, computing new positions/velocities as a result of applied forces,
 // etc. Physics simulation is updated on a fixed timestep, separate from the animation
 // framerate.
-export class PhysicsSim extends Scene 
-{
+export class PhysicsSim extends Scene {
     #time_accumulator;
     #time_scale;
     #t;
@@ -29,8 +28,7 @@ export class PhysicsSim extends Scene
     #cached_colliders_to_add;
     #cached_colliders_to_remove;
 
-    constructor() 
-    {
+    constructor() {
         super();
 
         this.#time_accumulator = 0;
@@ -52,8 +50,7 @@ export class PhysicsSim extends Scene
 
     // Abstract method that gets implemented in the derived scene.
     // Gets called once at start time.
-    initialize(context, program_state) 
-    {
+    initialize(context, program_state) {
         throw "IMPLEMENT INITIALIZE!";
     }
 
@@ -74,24 +71,19 @@ export class PhysicsSim extends Scene
         })
     }
 
-    fixed_update(frame_time)
-    {
+    fixed_update(frame_time) {
         // Add/remove cached game objects, and reset the caches.
-        for (let go of this.#cached_rigidbodies_to_add)
-        {
+        for (let go of this.#cached_rigidbodies_to_add) {
             this.#game_objects.set(go.name, go);
         }
-        for (let go of this.#cached_rigidbodies_to_remove)
-        {
+        for (let go of this.#cached_rigidbodies_to_remove) {
             this.#game_objects.delete(go.name);
         }
         this.#cached_rigidbodies_to_remove = [];
-        for (let go of this.#cached_colliders_to_add)
-        {
+        for (let go of this.#cached_colliders_to_add) {
             this.#game_objects.set(go.name, go);
         }
-        for (let go of this.#cached_colliders_to_remove)
-        {
+        for (let go of this.#cached_colliders_to_remove) {
             this.#game_objects.delete(go.name);
         }
         this.#cached_colliders_to_remove = [];
@@ -102,49 +94,52 @@ export class PhysicsSim extends Scene
         this.#cached_colliders_to_remove.length = 0;
 
         frame_time = this.#time_scale * frame_time;
-        
+
         // Limit the amount of time we will spend computing during this timestep if display lags:
         this.#time_accumulator += Math.min(frame_time, 0.1);
         // Repeatedly step the simulation until we're caught up with this frame:
-        while (Math.abs(this.#time_accumulator) >= this.#dt)
-        {
+        while (Math.abs(this.#time_accumulator) >= this.#dt) {
             // Step 1: Integrate applied accelerations to get nominal
             // object velocities.
             // Single step of the simulation for all game objects with Rigidbody components.
-            for (let go of this.#game_objects.values())
-            {
+            for (let go of this.#game_objects.values()) {
                 // Skip if no Rigidbody component is present (i.e. if the GameObject
                 // is just a Collider).
-                if (!go.has_rigidbody_component())
-                {
+                if (!go.has_rigidbody_component()) {
                     continue;
                 }
                 // Get the Rigidbody component of this GameObject.
                 let rb = go.get_rigidbody_component();
 
-                for (let force of rb.forces.values())
-                {
+                for (let force of rb.forces.values()) {
                     // Remove forces whose duration has expired.
-                    if (!force.indefinite && force.duration <= 0)
-                    {
+                    if (!force.indefinite && force.duration <= 0) {
                         rb.forces.delete(force.name);
                     }
                     // Decrement force duration.
-                    else if (!force.indefinite && force.duration > 0)
-                    {
+                    else if (!force.indefinite && force.duration > 0) {
                         force.duration -= this.#dt;
                     }
 
                     // Skip force application of the rigidbody is kinematic.
-                    if (rb.is_kinematic)
-                    {
+                    if (rb.is_kinematic) {
                         continue;
                     }
+
+                    // If force depends on time, acceleration vector will be different
+                    let acceleration;
+                    if (force.time_dependent) {
+                        let time = this.#t % (2 * Math.PI);
+                        let force_vector = force.force_vector_function(time);
+                        acceleration = force_vector.times(1 / rb.mass);
+                    } else {
+                        acceleration = force.force_vector.times(1 / rb.mass);
+                    }
+
 
                     // Apply the current force to the non-kinematic rigidbody 
                     // it acts upon in order to determine a new tentative velocity
                     // prior to contact resolution.
-                    const acceleration = force.force_vector.times(1 / rb.mass);
                     rb.velocity = rb.velocity.plus(acceleration.times(this.#dt));
                 }
             }
@@ -157,30 +152,26 @@ export class PhysicsSim extends Scene
             // for these possibilities later on!). Note that all rigidbodies must have colliders 
             // attached, but not all collider gameobjects need a rigidbody, hence why it's safe 
             // for us to just get each gameobject's collider component in this step.
-            for (let i = 0; i < this.#game_objects.size; ++i)
-            {
+            for (let i = 0; i < this.#game_objects.size; ++i) {
                 let goi = this.#game_objects.get(Array.from(this.#game_objects.keys())[i]);
                 let ci = goi.get_collider_component();
-                for (let j = i + 1; j < this.#game_objects.size; ++j)
-                {
+                for (let j = i + 1; j < this.#game_objects.size; ++j) {
                     let goj = this.#game_objects.get(Array.from(this.#game_objects.keys())[j]);
                     let cj = goj.get_collider_component();
 
                     // AABB-AABB collision detection. Uses more specialized/specific algorithm
                     // for faster/more precise results.
-                    if (ci.type == collider_types.AABB && cj.type == collider_types.AABB)
-                    {
+                    if (ci.type == collider_types.AABB && cj.type == collider_types.AABB) {
                         // Check if the two boxes overlap.
-                        if 
-                        (
+                        if
+                            (
                             !(goi.position[0] - ci.size[0] <= goj.position[0] + cj.size[0] &&
-                            goi.position[0] + ci.size[0] >= goj.position[0] - cj.size[0] &&
-                            goi.position[1] - ci.size[1] <= goj.position[1] + cj.size[1] &&
-                            goi.position[1] + ci.size[1] >= goj.position[1] - cj.size[1] &&
-                            goi.position[2] - ci.size[2] <= goj.position[2] + cj.size[2] &&
-                            goi.position[2] + ci.size[2] >= goj.position[2] - cj.size[2])
-                        )
-                        {
+                                goi.position[0] + ci.size[0] >= goj.position[0] - cj.size[0] &&
+                                goi.position[1] - ci.size[1] <= goj.position[1] + cj.size[1] &&
+                                goi.position[1] + ci.size[1] >= goj.position[1] - cj.size[1] &&
+                                goi.position[2] - ci.size[2] <= goj.position[2] + cj.size[2] &&
+                                goi.position[2] + ci.size[2] >= goj.position[2] - cj.size[2])
+                        ) {
                             continue;
                         }
 
@@ -214,63 +205,49 @@ export class PhysicsSim extends Scene
                             (ci.size[1] > cj.size[1]) ? ci.size[1] : cj.size[1],
                             (ci.size[2] > cj.size[2]) ? ci.size[2] : cj.size[2]
                         );
-                        
+
                         // Clamp on x-axis, check if dir penetrates the two AABB planes perpendicular to the x-axis.
-                        if (dir[0] != 0)
-                        {   
+                        if (dir[0] != 0) {
                             const alpha = Math.abs(max_size[0] / dir[0]);
-                            if (Math.abs(alpha * dir[1]) <= max_size[1] && Math.abs(alpha * dir[2]) <= max_size[2])
-                            {
-                                if (dir[0] > 0)
-                                {
+                            if (Math.abs(alpha * dir[1]) <= max_size[1] && Math.abs(alpha * dir[2]) <= max_size[2]) {
+                                if (dir[0] > 0) {
                                     norms.push(vec4(1, 0, 0, 0));
                                 }
-                                else
-                                {
+                                else {
                                     norms.push(vec4(-1, 0, 0, 0));
                                 }
                             }
                         }
                         // Clamp on y-axis, check if dir penetrates the two AABB planes perpendicular to the y-axis.
-                        if (dir[1] != 0)
-                        {   
+                        if (dir[1] != 0) {
                             const alpha = Math.abs(max_size[1] / dir[1]);
-                            if (Math.abs(alpha * dir[0]) <= max_size[0] && Math.abs(alpha * dir[2]) <= max_size[2])
-                            {
-                                if (dir[1] > 0)
-                                {
+                            if (Math.abs(alpha * dir[0]) <= max_size[0] && Math.abs(alpha * dir[2]) <= max_size[2]) {
+                                if (dir[1] > 0) {
                                     norms.push(vec4(0, 1, 0, 0));
                                 }
-                                else
-                                {
+                                else {
                                     norms.push(vec4(0, -1, 0, 0));
                                 }
                             }
                         }
                         // Clamp on z-axis, check if dir penetrates the two AABB planes perpendicular to the z-axis.
-                        if (dir[2] != 0)
-                        {   
+                        if (dir[2] != 0) {
                             const alpha = Math.abs(max_size[2] / dir[2]);
-                            if (Math.abs(alpha * dir[0]) <= max_size[0] && Math.abs(alpha * dir[1]) <= max_size[1])
-                            {
-                                if (dir[2] > 0)
-                                {
+                            if (Math.abs(alpha * dir[0]) <= max_size[0] && Math.abs(alpha * dir[1]) <= max_size[1]) {
+                                if (dir[2] > 0) {
                                     norms.push(vec4(0, 0, 1, 0));
                                 }
-                                else
-                                {
+                                else {
                                     norms.push(vec4(0, 0, -1, 0));
                                 }
                             }
                         }
-                        
-                        for (let n of norms)
-                        {
+
+                        for (let n of norms) {
                             contact.normal = contact.normal.plus(n);
                         }
-                        
-                        if (contact.normal.norm() != 0)
-                        {
+
+                        if (contact.normal.norm() != 0) {
                             contact.normal = contact.normal.to3().normalized().to4(false);
                         }
 
@@ -278,12 +255,10 @@ export class PhysicsSim extends Scene
                         this.#contact_constraints.set(key_array, contact);
                     }
                     // For all other collision detection we use the more general GJK+EPA method.
-                    else
-                    {
+                    else {
                         // Utilize GJK algorithm to determine if the two shapes are overlapping.
                         let gjk_result = this.#gjk_collision.is_colliding(goi, goj);
-                        if (!gjk_result.are_colliding)
-                        {
+                        if (!gjk_result.are_colliding) {
                             continue;
                         }
 
@@ -292,8 +267,7 @@ export class PhysicsSim extends Scene
                         // translation vector (MTV) for resolving said collision.
                         gjk_result.simplex.transform_into_3_simplex();
                         let epa_result = this.#epa.solve(goi, goj, gjk_result.simplex);
-                        if (epa_result == null)
-                        {
+                        if (epa_result == null) {
                             continue;
                         }
 
@@ -314,11 +288,9 @@ export class PhysicsSim extends Scene
             }
 
             // Step 3: Solve velocity constraint.
-            for (let i = 0; i < 15; ++i)
-            {
+            for (let i = 0; i < 15; ++i) {
                 // Apply tangential velocity constrain (i.e. friction).
-                for (const [key, contact] of this.#contact_constraints)
-                {
+                for (const [key, contact] of this.#contact_constraints) {
                     let goi = this.#game_objects.get(key[0]);
                     let goj = this.#game_objects.get(key[1]);
                     let rbi = goi.get_rigidbody_component();
@@ -330,20 +302,17 @@ export class PhysicsSim extends Scene
                     let friction = 0;
                     let relative_velocity = vec4(0, 0, 0, 0);
                     let effective_mass = 1;
-                    if (rbi != null && rbj != null)
-                    {
+                    if (rbi != null && rbj != null) {
                         friction = (rbi.friction + rbj.friction) / 2;
                         relative_velocity = rbj.velocity.minus(rbi.velocity);
                         effective_mass = 1 / rbi.mass + 1 / rbj.mass;
                     }
-                    else if (rbi != null && rbj == null)
-                    {
+                    else if (rbi != null && rbj == null) {
                         friction = rbi.friction;
                         relative_velocity = rbi.velocity.times(-1);
                         effective_mass = 1 / rbi.mass + 1;
                     }
-                    else if (rbi == null && rbj != null)
-                    {
+                    else if (rbi == null && rbj != null) {
                         friction = rbj.friction;
                         relative_velocity = rbj.velocity;
                         effective_mass = 1 / rbj.mass + 1;
@@ -352,8 +321,7 @@ export class PhysicsSim extends Scene
                     // Tangent impulse direction is the normalized projection of the relative velocity
                     // onto the tangential collision plane.
                     let tangent_impulse_dir = relative_velocity.minus(contact.normal.times(relative_velocity.dot(contact.normal)));
-                    if (tangent_impulse_dir.norm() != 0)
-                    {
+                    if (tangent_impulse_dir.norm() != 0) {
                         tangent_impulse_dir = tangent_impulse_dir.normalized();
                     }
                     // Negate velocity components that lie in the plane normal
@@ -371,20 +339,17 @@ export class PhysicsSim extends Scene
                     const tangent_impulse_vector = tangent_impulse_dir.times(tangent_impulse_magnitude);
 
                     // Only apply contact impulse to non-kinematic rigidbodies.
-                    if (rbi != null && !rbi.is_kinematic)
-                    {
+                    if (rbi != null && !rbi.is_kinematic) {
                         rbi.velocity = rbi.velocity.minus(tangent_impulse_vector.times(1 / rbi.mass));
                     }
-                    if (rbj != null && !rbj.is_kinematic)
-                    {
+                    if (rbj != null && !rbj.is_kinematic) {
                         rbj.velocity = rbj.velocity.plus(tangent_impulse_vector.times(1 / rbj.mass));
                     }
                 }
 
                 // Apply normal velocity constraint (i.e. reaction force that prevents
                 // objects from phasing through one another).
-                for (const [key, contact] of this.#contact_constraints)
-                {
+                for (const [key, contact] of this.#contact_constraints) {
                     let goi = this.#game_objects.get(key[0]);
                     let goj = this.#game_objects.get(key[1]);
                     let rbi = goi.get_rigidbody_component();
@@ -396,20 +361,17 @@ export class PhysicsSim extends Scene
                     let restitution = 0;
                     let relative_velocity = vec4(0, 0, 0, 0);
                     let effective_mass = 1;
-                    if (rbi != null && rbj != null)
-                    {
+                    if (rbi != null && rbj != null) {
                         restitution = rbi.restitution * rbj.restitution;
                         relative_velocity = rbj.velocity.minus(rbi.velocity);
                         effective_mass = 1 / rbi.mass + 1 / rbj.mass;
                     }
-                    else if (rbi != null && rbj == null)
-                    {
+                    else if (rbi != null && rbj == null) {
                         restitution = rbi.restitution ** 2;
                         relative_velocity = rbi.velocity.times(-1);
                         effective_mass = 1 / rbi.mass + 1;
                     }
-                    else if (rbi == null && rbj != null)
-                    {
+                    else if (rbi == null && rbj != null) {
                         restitution = rbj.restitution ** 2;
                         relative_velocity = rbj.velocity;
                         effective_mass = 1 / rbj.mass + 1;
@@ -429,55 +391,44 @@ export class PhysicsSim extends Scene
 
                     // By convention the normal points away from rbi, so negate.
                     // Only apply contact impulse to non-kinematic rigidbodies.
-                    if (rbi != null && !rbi.is_kinematic)
-                    {
+                    if (rbi != null && !rbi.is_kinematic) {
                         rbi.velocity = rbi.velocity.minus(normal_impulse_vector.times(1 / rbi.mass));
                     }
-                    if (rbj != null && !rbj.is_kinematic)
-                    {
+                    if (rbj != null && !rbj.is_kinematic) {
                         rbj.velocity = rbj.velocity.plus(normal_impulse_vector.times(1 / rbj.mass));
                     }
                 }
             }
 
             // Step 4: Clamp velocities of Rigidbodies so that they don't grow too large.
-            for (const go of this.#game_objects.values())
-            {
-                if (!go.has_rigidbody_component())
-                {
+            for (const go of this.#game_objects.values()) {
+                if (!go.has_rigidbody_component()) {
                     continue;
                 }
 
                 let rb = go.get_rigidbody_component();
-                if (!rb.is_kinematic)
-                {
-                    if (rb.velocity.norm() > 10)
-                    {
+                if (!rb.is_kinematic) {
+                    if (rb.velocity.norm() > 10) {
                         rb.velocity = rb.velocity.normalized().times(10);
                     }
                 }
             }
 
             // Step 5: Integrate velocities of Rigidbodies to obtain new object positions.
-            for (let go of this.#game_objects.values())
-            {
-                if (!go.has_rigidbody_component())
-                {
+            for (let go of this.#game_objects.values()) {
+                if (!go.has_rigidbody_component()) {
                     continue;
                 }
 
                 let rb = go.get_rigidbody_component();
-                if (!rb.is_kinematic)
-                {
+                if (!rb.is_kinematic) {
                     go.position = go.position.plus(rb.velocity.times(this.#dt));
                 }
             }
 
             // Step 6: Apply position constraint to ensure that there is no object overlap.
-            for (let i = 0; i < 3; ++i)
-            {
-                for (const [key, contact] of this.#contact_constraints)
-                {
+            for (let i = 0; i < 3; ++i) {
+                for (const [key, contact] of this.#contact_constraints) {
                     let goi = this.#game_objects.get(key[0]);
                     let goj = this.#game_objects.get(key[1]);
                     let rbi = goi.get_rigidbody_component();
@@ -492,28 +443,23 @@ export class PhysicsSim extends Scene
                     // Clamp to avoid over-correction.
                     const steering_force = Math.max(max_correction, Math.min(steering_constant * (separation + slop), 0));
                     let effective_mass = 1;
-                    if (rbi != null && rbj != null)
-                    {
+                    if (rbi != null && rbj != null) {
                         effective_mass = 1 / rbi.mass + 1 / rbj.mass;
                     }
-                    else if (rbi != null && rbj == null)
-                    {
+                    else if (rbi != null && rbj == null) {
                         effective_mass = 1 / rbi.mass + 1;
                     }
-                    else if (rbi == null && rbj != null)
-                    {
+                    else if (rbi == null && rbj != null) {
                         effective_mass = 1 / rbj.mass + 1;
                     }
                     var impulse = contact.normal.times(-steering_force / effective_mass);
-                    
+
                     // Update positions of rbi & rbj directly via "pseudo-impulse" (same impulse formula from above).
-                    if (rbi != null && !rbi.is_kinematic) 
-                    {
+                    if (rbi != null && !rbi.is_kinematic) {
                         goi.position = goi.position.minus(impulse.times(1 / rbi.mass));
                     }
-                
-                    if (rbj != null && !rbj.is_kinematic) 
-                    {
+
+                    if (rbj != null && !rbj.is_kinematic) {
                         goj.position = goj.position.plus(impulse.times(1 / rbj.mass));
                     }
                 }
@@ -533,15 +479,13 @@ export class PhysicsSim extends Scene
     // called once per frame and allows the developer to update non-physics
     // aspects of the scene (e.g. adding/deleting objects at runtime, 
     // triggering specific events, etc.).
-    update(context, program_state) 
-    {
+    update(context, program_state) {
         throw "IMPLEMENT UPDATE!";
     }
 
     // TODO: Maybe make this abstract function, and/or provide some base
     // UI functionality + allow each scene to have specialized user input.
-    make_control_panel() 
-    {
+    make_control_panel() {
         // make_control_panel(): Create the buttons for interacting with simulation time.
         this.key_triggered_button("Speed up time", ["Shift", "T"], () => this.#time_scale *= 5);
         this.key_triggered_button("Slow down time", ["t"], () => this.#time_scale /= 5);
@@ -565,132 +509,106 @@ export class PhysicsSim extends Scene
      * @param {string} name of RigidBody
      * @returns {GameObject}
      */
-     get_game_object(name) 
-    {
+    get_game_object(name) {
         // Note: returns undefined if not found
         return this.#game_objects.get(name);
     }
 
-    get_all_game_objects()
-    {
+    get_all_game_objects() {
         return Array.from(this.#game_objects.values());
     }
 
     // Try to add a GameObject with a valid Rigidbody to the physics simulation.
-    add_rigidbody(game_object)
-    {
-        if (game_object.has_rigidbody_component())
-        {
+    add_rigidbody(game_object) {
+        if (game_object.has_rigidbody_component()) {
             this.#cached_rigidbodies_to_add.push(game_object);
-            if (game_object.has_collider_component())
-            {
+            if (game_object.has_collider_component()) {
                 this.#cached_colliders_to_add.push(game_object);
             }
         }
-        else
-        {
+        else {
             console.log("WARNING: GameObject " + "\"" + game_object.get_name() + "\" does not have an attached RigidBody component.");
         }
     }
 
     // Try to remove a rigidbody, via its parent GameObject name, from the physics simulation.
-    remove_rigidbody(name)
-    {
-        if (this.#game_objects.has(name))
-        {
+    remove_rigidbody(name) {
+        if (this.#game_objects.has(name)) {
             let go = this.#game_objects.get(name);
-            if (go.has_rigidbody_component() && go.has_collider_component())
-            {
+            if (go.has_rigidbody_component() && go.has_collider_component()) {
                 this.#cached_rigidbodies_to_remove.push(this.#game_objects.get(name));
             }
-            else
-            {
+            else {
                 const s = "WARNING: Attempt to remove GameObject " + "\"" + name + "\"" +
-                          "from the PhysicsSim object as a RigidBody failed; GameObject is " + 
-                          "missing a Rigidbody and/or Collider component."
+                    "from the PhysicsSim object as a RigidBody failed; GameObject is " +
+                    "missing a Rigidbody and/or Collider component."
                 console.log(s);
             }
         }
-        else
-        {
+        else {
             console.log("WARNING: No GameObject " + "\"" + name + "\" exists in the PhysicsSim object.");
         }
     }
 
     // Try to add a GameObject with a valid Collider component ONLY to the physics simulation
     // (won't add GameObjects with both Rigidbody and collider components).
-    add_collider(game_object)
-    {
-        if (game_object.has_collider_component() && !game_object.has_rigidbody_component())
-        {
+    add_collider(game_object) {
+        if (game_object.has_collider_component() && !game_object.has_rigidbody_component()) {
             this.#cached_colliders_to_add.push(game_object);
         }
-        else if (!game_object.has_collider_component())
-        {
+        else if (!game_object.has_collider_component()) {
             console.log("WARNING: GameObject " + "\"" + game_object.name + "\" does not have an attached Collider component.");
         }
-        else if (game_object.has_collider_component() && game_object.has_rigidbody_component())
-        {
+        else if (game_object.has_collider_component() && game_object.has_rigidbody_component()) {
             const s = "WARNING: Cannot add GameObject " +
-                      "\"" + game_object.name + "\"" + 
-                      "\" as a pure collider to the physics scene because " +
-                      "it has an attached RigidBody component. " +
-                      "Remove the Rigidbody component from this GameObject in order " +
-                      "to add it as a Collider to the PhysicsSim object.";
+                "\"" + game_object.name + "\"" +
+                "\" as a pure collider to the physics scene because " +
+                "it has an attached RigidBody component. " +
+                "Remove the Rigidbody component from this GameObject in order " +
+                "to add it as a Collider to the PhysicsSim object.";
             console.log(s);
         }
     }
 
     // Try to remove a collider, via its parent GameObject name, from the physics simulation.
-    remove_collider(name)
-    {
-        if (this.#game_objects.has(name))
-        {
+    remove_collider(name) {
+        if (this.#game_objects.has(name)) {
             let go = this.#game_objects.get(name);
-            if (!go.has_rigidbody_component() && go.has_collider_component())
-            {
+            if (!go.has_rigidbody_component() && go.has_collider_component()) {
                 this.#cached_colliders_to_remove.push(this.#game_objects.get(name));
             }
-            else
-            {
+            else {
                 const s = "WARNING: Attempt to remove GameObject " + "\"" + name + "\"" +
-                          "from the PhysicsSim object as a Collider failed; GameObject is " + 
-                          "either missing a Collider component or also contains a Rigidbody component."
+                    "from the PhysicsSim object as a Collider failed; GameObject is " +
+                    "either missing a Collider component or also contains a Rigidbody component."
                 console.log(s);
             }
         }
-        else
-        {
+        else {
             console.log("WARNING: No GameObject with name " + "\"" + name + "\" exists in the PhysicsSim object.");
         }
     }
 
-    display(context, program_state) 
-    {
-        if (program_state.animation_delta_time == 0)
-        {
-            this.initialize(context, program_state);
+    display(context, program_state) {
+        if (program_state.animation_delta_time == 0) {
+            this.initialize(context, program_state, this.#t);
         }
 
-        if (program_state.animate)
-        {
+        if (program_state.animate) {
             this.fixed_update(program_state.animation_delta_time);
             this.update(context, program_state);
         }
 
-        for (let go of this.#game_objects.values())
-        {
+        for (let go of this.#game_objects.values()) {
             // Only display RigidBodies (Collider-only GameObjects are invisible).
-            if (!go.has_rigidbody_component())
-            {
+            if (!go.has_rigidbody_component()) {
                 continue;
             }
             let model_transform = Mat4.identity();
             model_transform = model_transform.times(Mat4.translation(go.position[0], go.position[1], go.position[2], go.position[3]));
             model_transform = model_transform.times(Mat4.scale(go.scale[0], go.scale[1], go.scale[2]));
 
-            if (go.shape != null)
-            {
+            if (go.shape != null) {
                 go.shape.draw(context, program_state, model_transform, go.material);
             }
         }

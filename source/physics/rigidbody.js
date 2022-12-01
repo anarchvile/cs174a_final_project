@@ -15,9 +15,9 @@ export class RigidBody
     }
 
     // Apply a new force to the Rigidbody.
-    add_force(name, force_vector, indefinite, duration = 0)
+    add_force(name, force_vector, indefinite, duration = 0, time_dependent, force_vector_function)
     {
-        this.forces.set(name, new Force(name, force_vector, indefinite, duration));
+        this.forces.set(name, new Force(name, force_vector, indefinite, duration, time_dependent, force_vector_function));
     }
 
     // Apply an existing Force object to the Rigidbody.

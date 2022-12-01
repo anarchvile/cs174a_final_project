@@ -939,6 +939,11 @@ const Movement_Controls = defs.Movement_Controls =
             });
         }
 
+
+        set_speed(speed) {
+            this.speed = speed;
+        }
+
         #_move()
         {
             let m = this.matrix();
