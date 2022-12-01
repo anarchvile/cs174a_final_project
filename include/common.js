@@ -959,7 +959,7 @@ const Movement_Controls = defs.Movement_Controls =
             this.shotgun_position3 = vec3(m[0][3] + 2, m[1][3] + (-2), m[2][3] + this.d_offset);
 
             this.cannon_position = vec3(m[0][3], m[1][3] + 5, m[2][3] + this.d_offset + (-2));
-            this.low_grav_position = vec3(m[0][3], m[1][3] + (-2), m[2][3] + this.d_offset)
+            this.low_grav_position = vec3(m[0][3], m[1][3] + 1, m[2][3] + this.d_offset)
         }
 
         #_aim()
