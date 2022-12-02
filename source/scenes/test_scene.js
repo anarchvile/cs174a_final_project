@@ -11,12 +11,19 @@ export class TestScene extends PhysicsSim {
         this.shapes =
         {
             cube: new defs.Cube(),
+            tower_cube: new defs.Cube(),
+            ground_cube: new defs.Cube(),
             sphere: new defs.Subdivision_Sphere(4),
             moon: new defs.Subdivision_Sphere(4),
             cone_tip: new defs.Closed_Cone(10, 10),
             skybox: new defs.Cube(),
         };
         this.shapes.moon.arrays.texture_coord = this.shapes.moon.arrays.texture_coord.map(x => x.times(2));
+        this.shapes.ground_cube.arrays.texture_coord = this.shapes.ground_cube.arrays.texture_coord.map(x => x.times(6));
+        this.shapes.tower_cube.arrays.texture_coord = this.shapes.tower_cube.arrays.texture_coord.map(y => {
+            return y.times(2)
+        });
+
         this.materials = {
             plastic: new Material(new defs.Phong_Shader(),
                 { ambient: .4, diffusivity: .6, color: color(1, 0, 0, 1) }),
@@ -57,7 +64,7 @@ export class TestScene extends PhysicsSim {
             }),
             asteroid_texture: new Material(new defs.Textured_Phong(), {
                 color: hex_color("#000000"),
-                ambient: 1, diffusivity: 0.1, specularity: 0.1,
+                ambient: 1, diffusivity: 0, specularity: 0,
                 texture: new Texture("source/textures/asteroid.jpg", "LINEAR_MIPMAP_LINEAR")
             }),
             sky_texture: new Material(new defs.Textured_Phong(), {
@@ -75,16 +82,26 @@ export class TestScene extends PhysicsSim {
                 ambient: 1, diffusivity: 0.1, specularity: 0.1,
                 texture: new Texture("source/textures/level_8.png", "LINEAR_MIPMAP_LINEAR")
             }),
-
+            moon_fail_texture: new Material(new defs.Textured_Phong(), {
+                color: hex_color("#000000"),
+                ambient: 1, diffusivity: 0.1, specularity: 0.1,
+                texture: new Texture("source/textures/moon_fail.png", "LINEAR_MIPMAP_LINEAR")
+            }),
+            brick_texture: new Material(new defs.Textured_Phong(), {
+                color: hex_color("#000000"),
+                ambient: 1, diffusivity: 0.1, specularity: 0.1,
+                texture: new Texture("source/textures/brick_texture.jpg", "LINEAR_MIPMAP_LINEAR")
+            }),
         }
         this.initial_camera_positions = {
             6: Mat4.identity(),
-            7: Mat4.translation(50, -20, -40),
+            7: Mat4.translation(60, -20, -40),
             8: Mat4.identity(),
             9: Mat4.rotation(Math.PI, 0, 1, 0).times(Mat4.translation(-50, -5, 5)),
             10: Mat4.identity(),
             11: Mat4.identity(),
             12: Mat4.identity(),
+            13: Mat4.identity(),
         }
 
         this.required_level_objects = {
@@ -94,11 +111,12 @@ export class TestScene extends PhysicsSim {
             9: ["tower1", "tower2", "tower3", "tower4", "tower5"],
             10: [],
             11: [],
-            12: []
+            12: [],
+            13: [],
         }
 
 
-        this.test_scene = 11;
+        this.test_scene = 6;
         this.flag = false;
         this.direction_flag = true;
         this.bullet_idx = 0;
@@ -116,9 +134,6 @@ export class TestScene extends PhysicsSim {
     make_control_panel() {
         super.make_control_panel();
         this.new_line();
-        this.key_triggered_button("Next level", ["m"], () => {
-
-        });
 
         this.key_triggered_button("Restart Level", ["r"], () => {
             this.reset_flag = true;
@@ -274,7 +289,7 @@ export class TestScene extends PhysicsSim {
         }
         else if (this.test_scene == 5) {
             // Test Scene 5 - A stack of bricks to shoot bullets at.
-            this.ground = new GameObject("Ground", this.shapes.cube, this.materials.plastic.override({ color: color(1, 1, 0, 1) }), vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(40, 1, 20));
+            this.ground = new GameObject("Ground", this.shapes.ground_cube, this.materials.plastic.override({ color: color(1, 1, 0, 1) }), vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(40, 1, 20));
             this.ground.add_rigidbody_component(true);
             this.ground.add_collider_component(collider_types.AABB, this.ground.scale);
             this.add_rigidbody(this.ground);
@@ -307,13 +322,13 @@ export class TestScene extends PhysicsSim {
         } else if (this.test_scene == 6) { // TEST SCENE WITH BUILDINGS + MOVABLE DOORS
 
         } else if (this.test_scene == 7) { // Level with multiple towers you need to "knock" spheres off of 
-            this.ground = new GameObject("Ground", this.shapes.cube, this.materials.asteroid_texture, vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(60, 1, 60));
+            this.ground = new GameObject("Ground", this.shapes.ground_cube, this.materials.asteroid_texture, vec4(0, -10, 0, 1), vec3(0, 0, 0), vec3(120, 1, 60));
             this.ground.add_rigidbody_component(true);
             this.ground.add_collider_component(collider_types.AABB, this.ground.scale);
             this.add_rigidbody(this.ground);
 
             //////////////////////// TOWER + BALL 1 ////////////////////////
-            let tower1 = new GameObject("Tower1", this.shapes.cube, this.materials.box1, vec4(-40.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 14, 3));
+            let tower1 = new GameObject("Tower1", this.shapes.tower_cube, this.materials.brick_texture, vec4(-40.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 14, 3));
             tower1.add_rigidbody_component(true);
             tower1.add_collider_component(collider_types.AABB, tower1.scale);
             this.add_rigidbody(tower1);
@@ -325,7 +340,7 @@ export class TestScene extends PhysicsSim {
             this.add_rigidbody(ball1);
 
             //////////////////////// TOWER + BALL 2 ////////////////////////
-            let tower2 = new GameObject("Tower2", this.shapes.cube, this.materials.box1.override({ color: hex_color("#ff00ff") }), vec4(-10.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 12, 3));
+            let tower2 = new GameObject("Tower2", this.shapes.tower_cube, this.materials.brick_texture, vec4(-10.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 12, 3));
             tower2.add_rigidbody_component(true);
             tower2.add_collider_component(collider_types.AABB, tower2.scale);
             this.add_rigidbody(tower2);
@@ -337,7 +352,7 @@ export class TestScene extends PhysicsSim {
             this.add_rigidbody(ball2);
 
             //////////////////////// TOWER + BALL 3 ////////////////////////
-            let tower3 = new GameObject("Tower3", this.shapes.cube, this.materials.box2, vec4(5.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 12, 3));
+            let tower3 = new GameObject("Tower3", this.shapes.tower_cube, this.materials.brick_texture, vec4(5.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 12, 3));
             tower3.add_rigidbody_component(true);
             tower3.add_collider_component(collider_types.AABB, tower3.scale);
             this.add_rigidbody(tower3);
@@ -349,7 +364,7 @@ export class TestScene extends PhysicsSim {
             this.add_rigidbody(ball3);
 
             //////////////////////// TOWER + BALL 4 ////////////////////////
-            let tower4 = new GameObject("Tower4", this.shapes.cube, this.materials.box2.override({ color: hex_color("#A47449") }), vec4(25.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 14, 3));
+            let tower4 = new GameObject("Tower4", this.shapes.tower_cube, this.materials.brick_texture, vec4(25.5, 0, 0, 1), vec3(0, 0, 0), vec3(3, 14, 3));
             tower4.add_rigidbody_component(true);
             tower4.add_collider_component(collider_types.AABB, tower4.scale);
             this.add_rigidbody(tower4);
@@ -410,6 +425,7 @@ export class TestScene extends PhysicsSim {
             this.add_rigidbody(tower5);
         } else if (this.test_scene == 11) {
             this.start_time = time;
+            this.can_win_scene_11 = true;
 
             let ball1 = new GameObject("Ball1", this.shapes.sphere, this.materials.asteroid_texture, vec4(0, -3, -50, 1), vec3(0, 0, 0), vec3(2, 2, 2));
             ball1.add_rigidbody_component(false, 1, vec4(0, 0, 1, 0), 0, 0.75);
@@ -617,14 +633,21 @@ export class TestScene extends PhysicsSim {
     }
 
     should_update_scene(time) {
-        if (this.test_scene == 6 || this.test_scene == 8 || this.test_scene == 10) {
+        if (this.test_scene == 6 || this.test_scene == 8 || this.test_scene == 10 || this.test_scene == 13) {
             if (this.initial_message_time == -1) {
                 this.initial_message_time = time;
             } else {
                 if (time - this.initial_message_time > 6) {
-                    this.test_scene = this.test_scene + 1;
+                    console.log(this.test_scene);
+                    if (this.test_scene == 13) {
+                        this.can_win_scene_11 = true;
+                        this.test_scene = 11;
+                    } else {
+                        this.test_scene = this.test_scene + 1;
+                    }
                     this.reset_flag = true;
                     this.initial_message_time = -1;
+                    this.start_time = time;
                 }
             }
         }
@@ -686,6 +709,10 @@ export class TestScene extends PhysicsSim {
             }
         }
 
+        if (!this.can_win_scene_11) {
+            this.remove_all_game_objects();
+            this.test_scene = 13;
+        }
     }
 
     is_out_of_bounds(program_state) {
@@ -727,7 +754,6 @@ export class TestScene extends PhysicsSim {
             context.scratchpad.controls.set_speed(0.05);
             this.start_time = t;
             this.reset_flag = false;
-
         }
 
         //////////////// MISC LOCAL FUNCTIONS ////////////////
@@ -771,7 +797,7 @@ export class TestScene extends PhysicsSim {
 
             this.shapes.sphere.draw(context, program_state, sun_transform, this.materials.sun.override({ color: sun_color }));
             this.shapes.skybox.draw(context, program_state, skybox_transform, this.test_scene == 11 ? this.materials.skybox_texture : this.materials.sky_texture);
-        } else if (this.test_scene == 6 || this.test_scene == 8 || this.test_scene == 10 || this.test_scene == 12) {
+        } else if (this.test_scene == 6 || this.test_scene == 8 || this.test_scene == 10 || this.test_scene == 12 || this.test_scene == 13) {
             program_state.set_camera(Mat4.identity());
             let message_transform = model_transform
                 .times(Mat4.translation(0, -4, -40))
@@ -779,7 +805,10 @@ export class TestScene extends PhysicsSim {
             let skybox_transform = model_transform.times(Mat4.scale(80, 80, 100));
 
             let material;
-            if (this.test_scene == 12) {
+            if (this.test_scene == 13) {
+                material = this.materials.moon_fail_texture;
+            }
+            else if (this.test_scene == 12) {
                 material = this.materials.game_over_texture;
             } else if (this.test_scene == 10) {
                 material = this.materials.pre_asteroid_texture;
