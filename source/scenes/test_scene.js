@@ -19,13 +19,13 @@ export class TestScene extends PhysicsSim
             plastic: new Material(new defs.Phong_Shader(),
                 {ambient: .4, diffusivity: .6, color: color(1,0,0,1)}),
         };
-        this.test_scene = 6;
+        // Switch this variable from 1 to 6 to get different physics demo levels.
         this.flag = false;
     }
 
     initialize(context, program_state)
     {
-        if (this.test_scene == 1)
+        if (this.physics_demo_level == 1)
         {
             // Test Scene 1 - Sphere-Sphere Collision in Free Space.
             let go1 = new GameObject("Sphere1", this.shapes.sphere, this.materials.plastic, vec4(-10, 0, 0, 1), vec3(0, 0, 0), vec3(2, 2, 2));
@@ -42,7 +42,7 @@ export class TestScene extends PhysicsSim
             go2.add_collider_component(collider_types.Sphere, 2);
             this.add_rigidbody(go2);
         }
-        else if (this.test_scene == 2)
+        else if (this.physics_demo_level == 2)
         {
             // Test Scene 2 - AABB-AABB Collision in Free Space.
             let go1 = new GameObject("Cube1", this.shapes.cube, this.materials.plastic, vec4(-10, 1, 0, 1), vec3(0, 0, 0), vec3(0.5, 2, 1));
@@ -59,7 +59,7 @@ export class TestScene extends PhysicsSim
             go2.add_collider_component(collider_types.AABB, go2.scale);
             this.add_rigidbody(go2);
         }
-        else if (this.test_scene == 3)
+        else if (this.physics_demo_level == 3)
         {
             // Test Scene 3 - Friction (the average friction value between two rigidbodies is used for computation).
             let go1 = new GameObject("Cube1", this.shapes.cube, this.materials.plastic.override({ color: color(1, 0, 0, 1) }), vec4(-19, -18, 0, 1), vec3(0, 0, 0), vec3(1, 1, 1));
@@ -94,7 +94,7 @@ export class TestScene extends PhysicsSim
             go7.add_collider_component(collider_types.AABB, go7.scale);
             this.add_rigidbody(go7);
         }
-        else if (this.test_scene == 4)
+        else if (this.physics_demo_level == 4)
         {
             // Test Scene 4 - Complete scene with AABB and Spheres bouncing around in an enclosed box, with frictional effects as well.
             let go1 = new GameObject("Cube1", this.shapes.cube, this.materials.plastic.override({ color: color(1, 0, 0, 1) }), vec4(0, 12.5, 0, 1), vec3(0, 0, 0), vec3(1, 2, 1));
@@ -180,7 +180,7 @@ export class TestScene extends PhysicsSim
             go14.add_collider_component(collider_types.AABB, go14.scale);
             this.add_rigidbody(go14);
         }
-        else if (this.test_scene == 5)
+        else if (this.physics_demo_level == 5)
         {
             // Test Scene 5 - Stack of falling spheres.
             let go1 = new GameObject("Ground", this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), vec4(0, -21, 0, 1), vec3(0, 0, 0), vec3(50, 1, 50));
@@ -198,7 +198,7 @@ export class TestScene extends PhysicsSim
                 this.add_rigidbody(go);
             }
         }
-        else if (this.test_scene == 6)
+        else if (this.physics_demo_level == 6)
         {
             // Test Scene 5 - Stack of falling boxes.
             let go1 = new GameObject("Ground", this.shapes.cube, this.materials.plastic.override({color: color(1, 1, 0, 1)}), vec4(0, -21, 0, 1), vec3(0, 0, 0), vec3(50, 1, 50));

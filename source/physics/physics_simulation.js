@@ -26,6 +26,7 @@ export class PhysicsSim extends Scene
     #cached_rigidbodies_to_remove;
     #cached_colliders_to_add;
     #cached_colliders_to_remove;
+    #swap_demo;
 
     constructor() 
     {
@@ -46,6 +47,9 @@ export class PhysicsSim extends Scene
 
         this.#gjk_collision = new GJKCollision();
         this.#epa = new EPA();
+
+        this.physics_demo_level = 1;
+        this.#swap_demo = false;
     }
 
     // Abstract method that gets implemented in the derived scene.
@@ -524,6 +528,19 @@ export class PhysicsSim extends Scene
         // make_control_panel(): Create the buttons for interacting with simulation time.
         this.key_triggered_button("Speed up time", ["Shift", "T"], () => this.#time_scale *= 5);
         this.key_triggered_button("Slow down time", ["t"], () => this.#time_scale /= 5);
+        this.key_triggered_button("Swap Physics Demo Level", ["s"], () => 
+            {
+                this.#swap_demo = true;
+                if (this.physics_demo_level == 6)
+                {
+                    this.physics_demo_level = 1;
+                }
+                else
+                {
+                    this.physics_demo_level += 1;
+                }
+            }
+        )
         this.new_line();
         this.live_string(box => {
             box.textContent = "Time scale: " + this.#time_scale
@@ -629,8 +646,15 @@ export class PhysicsSim extends Scene
 
     display(context, program_state) 
     {
-        if (program_state.animation_delta_time == 0)
+        if (program_state.animation_delta_time == 0 || this.#swap_demo)
         {
+            this.#swap_demo = false;
+            this.#game_objects.clear();
+            this.#cached_rigidbodies_to_add.length = 0;
+            this.#cached_rigidbodies_to_remove.length = 0;
+            this.#cached_colliders_to_add.length = 0;
+            this.#cached_colliders_to_remove.length = 0;
+            this.#contact_constraints.clear();
             this.initialize(context, program_state);
         }
 
