@@ -106,7 +106,7 @@ export class TestScene extends PhysicsSim {
 
         this.required_level_objects = {
             6: [],
-            7: ["Ball1", "Ball2", "Ball3", "Ball4"],
+            7: ["Ball1", "Ball2", "Ball3", "Ball4", "Ball5"],
             8: [],
             9: ["tower1", "tower2", "tower3", "tower4", "tower5"],
             10: [],
@@ -374,6 +374,18 @@ export class TestScene extends PhysicsSim {
             ball4.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
             ball4.add_collider_component(collider_types.AABB, ball4.scale);
             this.add_rigidbody(ball4);
+
+            //////////////////////// TOWER + BALL 5 ////////////////////////
+            let tower5 = new GameObject("Tower5", this.shapes.tower_cube, this.materials.brick_texture, vec4(50, 0, 0, 1), vec3(0, 0, 0), vec3(3, 14, 3));
+            tower5.add_rigidbody_component(true);
+            tower5.add_collider_component(collider_types.AABB, tower5.scale);
+            this.add_rigidbody(tower5);
+
+            let ball5 = new GameObject("Ball5", this.shapes.sphere, this.materials.plastic.override({ color: color(1, 0, 1, 1) }), vec4(50, 16, 0, 1), vec3(0, 0, 0), vec3(2, 2, 2));
+            ball5.add_rigidbody_component(false, 1, vec4(0, 0, 0, 0), 0, 0.75);
+            ball5.get_rigidbody_component().add_force("Force1", vec4(0, -0.5, 0, 0), true);
+            ball5.add_collider_component(collider_types.AABB, ball5.scale);
+            this.add_rigidbody(ball5);
         } else if (this.test_scene == 8) {
             // nothing to do
         } else if (this.test_scene == 9) {
@@ -604,10 +616,12 @@ export class TestScene extends PhysicsSim {
             let ball2 = this.get_game_object("Ball2");
             let ball3 = this.get_game_object("Ball3");
             let ball4 = this.get_game_object("Ball4");
-            if (ball1 && ball1.position[1] < 14 &&
+            let ball5 = this.get_game_object("Ball5");
+            if (ball1 && ball1.position[1] < 12 &&
                 ball2 && ball2.position[1] < 12 &&
                 ball3 && ball3.position[1] < 12 &&
-                ball4 && ball4.position[1] < 14) {
+                ball4 && ball4.position[1] < 12 &&
+                ball5 && ball5.position[1] < 12) {
                 this.end_game(program_state);
             }
         }
